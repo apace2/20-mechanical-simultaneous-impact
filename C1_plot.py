@@ -5,7 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import util
+import var_soln
 from DecoupledDP import DecoupledDP as DDP
+from dp_c1 import Xi_n1
 
 
 forwardsim_suffix = 'fowardsim.npz'
@@ -76,6 +78,21 @@ def forward_sim_perturbation(sys, q0, dq0, p, perturb_dir):
 
   return perturbation, Q, DQ
 
+def varsim(sys, q0, dq0):
+  '''
+  hardcoded for DecoupledDP
+  '''
+
+  assert sys == DDP
+
+  dt = 1e-4
+  trjs_nom = util.sim(sys, tstop, dt, rx, t0, q0, dq0, J, p)
+  X1 = var_soln.variational_soln(trjs_nom[0], p, sys.DxF)
+  X2 = var_soln.variational_soln(trjs_nom[-1], p, sys.DxF)
+  Xi = np.asarray(Xi_n1).astype(np.float64)
+  Phi = X2 @ Xi @ X1
+  return Phi
+
 
 if __name__ == '__main__':
   decoupled = True
@@ -90,10 +107,45 @@ if __name__ == '__main__':
   if os.path.exists(filename_forwardsim) and use_saved_data:
     with np.load(filename_forwardsim) as data:
       print('>>>>>Using data from '+filename_forwardsim)
-      perturbation = data['perturbation']
+      pert_mag = data['perturbation']
+      perturb_dir = data['perturbation_dir']
       Q = data['Q']
       DQ = data['DQ']
 
   else:
-    perturbation, Q, DQ = forward_sim_perturbation(sys, q0, dq0, p, perturb_dir)
-    np.savez(filename_forwardsim, perturbation=perturbation, Q=Q, DQ=DQ)
+    pert_mag, Q, DQ = forward_sim_perturbation(sys, q0, dq0, p, perturb_dir)
+    np.savez(filename_forwardsim, perturbation=pert_mag, perturbation_dir=perturb_dir,
+             Q=Q, DQ=DQ)
+
+  print('')
+  print("Calculate variational solution")
+  filename_varsim = filename+varsim_suffix
+  if os.path.exists(filename_varsim) and use_saved_data:
+    with np.load(filename_varsim) as data:
+      print('>>>>>Using data from: '+filename_varsim)
+      Phi = data['Phi']
+
+  else:
+    Phi = varsim(DDP, q0, dq0)
+    np.savez(filename_varsim, Phi=Phi)
+
+  ######
+  # Generate plots
+  ######
+  assert np.all(perturb_dir == np.array([1., 0, 0, 0]))
+
+  pert_vec = np.hstack((perturb_dir, np.zeros_like(perturb_dir)))
+  pert_slope = Phi@pert_vec
+  zero_perturb_ind = np.isclose(pert_mag, np.zeros_like(pert_mag)).nonzero()[0][0]
+
+  state_ind = 0
+  nom_val = Q[zero_perturb_ind, state_ind]
+
+  fig, ax = plt.subplots(1, 1, sharex=True)
+  ax.plot(pert_mag, Q[:, state_ind], label='Forward Simulation')  #simulated
+  ax.plot(pert_mag, nom_val + pert_slope[state_ind]*pert_mag, label='Linear Approximation')
+  ax.set_xlabel('Perturbation magnitude\nPerturbation direction = '+str(perturb_dir))
+  ax.set_ylabel('$\Theta_1(t=t_{\text{final}})$')
+
+  ax.set_title('Approximating perturbation of flow with its derivative')
+  plt.tight_layout()

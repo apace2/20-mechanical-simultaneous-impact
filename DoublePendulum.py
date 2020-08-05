@@ -169,9 +169,9 @@ class DoublePendulum:
                     [np.sin(theta), np.cos(theta)]])
       return R
 
-    O = np.array([0, 0])  #origin
-    P1 = np.array([np.cos(q[0])*p['l0'], np.sin(q[0])*p['l0']])
-    P2 = R(q[0])@np.array([np.cos(q[1])*p['l1'], np.sin(q[1])*p['l1']]) + P1
+    O = 0  # orign
+    P1 = p['l0']*np.exp(1.j*q[0])
+    P2 = p['l1']*np.exp(1.j*(q[0]+q[1]))+P1
 
     if draw_a1:
       b = p['m1']*p['l0']*p['l1']/2
@@ -183,10 +183,26 @@ class DoublePendulum:
       linec = mlines.Line2D([P1[0], PC[0]], [P1[1], PC[1]], **lp)
       ax.add_line(linec)
 
-    lp = p.get('beam_line_param', default_beam_lp)
-    line0 = mlines.Line2D([O[0], P1[0]], [O[1], P1[1]], **lp)
-    line1 = mlines.Line2D([P1[0], P2[0]], [P1[1], P2[1]], **lp)
-    ax.add_line(line0)
-    ax.add_line(line1)
+    lc = 'blue'
+    mec = 'orange'  #marker edge color
+    plot_params = {'marker':'o', 'linestyle':'-', 'markersize':15,
+                   'lw':10, 'mec':mec, 'mew':5, 'mfc':lc, 'color':lc}
+    seg1 = np.array([O, P1])
+    seg2 = np.array([P1, P2])
+    ax.plot(seg1.real, seg1.imag, **plot_params)
+    ax.plot(seg2.real, seg2.imag, **plot_params)
+
+    #lp = p.get('beam_line_param', default_beam_lp)
+    #line0 = mlines.Line2D([O[0], P1[0]], [O[1], P1[1]], **lp)
+    #line1 = mlines.Line2D([P1[0], P2[0]], [P1[1], P2[1]], **lp)
+    #ax.add_line(line0)
+    #ax.add_line(line1)
 
     return ax
+
+if __name__ == '__main__':
+  p = DoublePendulum.nominal_parameters()
+  rho = DoublePendulum.simultaneous_impact_configuration(p)
+
+  fig, ax = plt.subplots(1)
+  DoublePendulum.draw_config(rho, p, ax=ax, draw_a1=False)

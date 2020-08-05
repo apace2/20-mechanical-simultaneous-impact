@@ -175,12 +175,13 @@ if __name__ == '__main__':
   ax.get_yaxis().set_visible(False)
   ax.get_xaxis().set_visible(False)
 
-  blp = {'color':'blue'}
-  p['beam_line_param'] = blp
-  DP.draw_config(Q[0, :], p, ax=ax)
-  DP.draw_config(Q[-1, :], p, ax=ax)
-  #blp = {'color':0}
-  blp['color'] = '0'
-  zero_perturb_ind = int(len(perturbation)/2)
-  DP.draw_config(Q[zero_perturb_ind, :], p, ax=ax)
+  DP.draw_config(Q[0, :], p, ax=ax,  draw_a1=False)
+  #blp = {'color':'blue'}
+  #p['beam_line_param'] = blp
+  #DP.draw_config(Q[0, :], p, ax=ax)
+  #DP.draw_config(Q[-1, :], p, ax=ax)
+  ##blp = {'color':0}
+  #blp['color'] = '0'
+  #zero_perturb_ind = int(len(perturbation)/2)
+  #DP.draw_config(Q[zero_perturb_ind, :], p, ax=ax)
 

@@ -66,21 +66,12 @@ class DecoupledDP():
       Minv = la.inv(M)
 
     if cls.Fs is None:
-      #qsym = sympy.symarray('q', cls.DOF)
-      #Fs = cls.symbolic_spring_force(qsym, p)
-      ##qsym = np.asarray(qsym)
-      #cls.Fs = sympy.lambdify((qsym,), Fs)
-
-      qsym = sympy.physics.mechanics.dynamicsymbols('q[:4]')
-      th1, x2, y2, th2 = qsym
-      s = sympy.sqrt(((x2-p['l2']/2*sympy.cos(th2))-p['l1']*sympy.cos(th1))**2 +
-         ((y2-p['l2']/2*sympy.sin(th2))-p['l1']*sympy.sin(th1))**2)
-      P = .5*p['ks']*(s-p['s0'])**2
-      Fs = P.diff(sympy.Matrix(qsym))
+      qsym = sympy.symarray('q', cls.DOF)
+      Fs = cls.symbolic_spring_force(qsym, p)
       cls.Fs = sympy.lambdify((qsym,), Fs)
 
     if symbolic:
-      f, _ = cls.symbolic_spring_force(p)
+      f = sympy.Matrix(cls.symbolic_spring_force(q, p))
     else:
       f = cls.Fs(q)
     ddq = Minv@f
@@ -88,18 +79,19 @@ class DecoupledDP():
 
   @classmethod
   def DxF(cls, t, k, q, dq, J, p):
-    # Given all methods are classmethods
-    # should include p as an input
+    # Given all methods are classmethod
+    # should include p as an input for DxF_lam
     # Challenge: symbolic matrix inverses take longer
-    if DxF_lam is None:
+    if cls.DxF_lam is None:
       q_sym = sympy.symarray('q', cls.DOF)
       dq_sym = sympy.symarray('dq', cls.DOF)
       ddq_sym = cls.ddq(None, None, q_sym, dq_sym, None, p, symbolic=True)
 
-      vec_field = sympy.Matrix.vstack( dq_sym, ddq_sym)
+      vec_field = sympy.Matrix.vstack(sympy.Matrix(dq_sym), sympy.Matrix(ddq_sym))
       DxF_sym = vec_field.jacobian(sympy.Matrix([*q_sym, *dq_sym]))
-      DxF_lam = sympy.lambdify([q_sym, dq_sym])
-    return DxF(q, dq)
+      cls.DxF_lam = sympy.lambdify([q_sym, dq_sym], DxF_sym)
+
+    return np.asarray(cls.DxF_lam(q, dq)).astype(np.float64)
 
   @classmethod
   def G(cls, t, k, q, dq, J, p):
@@ -190,4 +182,33 @@ class DecoupledDP():
 
   @classmethod
   def draw_config(cls, q, p, draw_a1=True, ax=None):
-    pass
+    O = 0  # orign
+    P1 = p['l1']*np.exp(1.j*q[0])
+    P2r = p['l2']/2*np.exp(1.j*q[3])+q[1]+q[2]*1j
+    P2l = -p['l2']/2*np.exp(1.j*q[3])+q[1]+q[2]*1j
+
+    lc = 'blue'
+    mec = 'orange'  #marker edge color
+    plot_params = {'marker':'o', 'linestyle':'-', 'markersize':15,
+                   'lw':10, 'mec':mec, 'mew':5, 'mfc':lc, 'color':lc}
+    seg1 = np.array([O, P1])
+    seg2 = np.array([P2l, P2r])
+    ax.plot(seg1.real, seg1.imag, **plot_params)
+    ax.plot(seg2.real, seg2.imag, **plot_params)
+
+    #if np.abs(P2l - P1) > .1:
+    #draw the spring
+    spring_seg = np.array([P1, P2l])
+    spring_line = {'linestyle':':', 'lw':5, 'color':'black'}
+    ax.plot(spring_seg.real, spring_seg.imag, **spring_line, zorder=-3)
+
+    return ax
+
+
+if __name__ == '__main__':
+  p = DecoupledDP.nominal_parameters()
+  rho = DecoupledDP.simultaneous_impact_configuration(p)
+
+  fig, ax = plt.subplots(1)
+  DecoupledDP.draw_config(rho, p, ax=ax)
+
