@@ -1,11 +1,11 @@
 # vim: expandtab tabstop=2 shiftwidth=2
 
+import argparse
 import os.path
 import numpy as np
 import matplotlib.pyplot as plt
 
 import util
-import var_soln
 from DecoupledDP import DecoupledDP as DDP
 from dp_c1 import Xi_n1
 
@@ -87,16 +87,25 @@ def varsim(sys, q0, dq0):
 
   dt = 1e-4
   trjs_nom = util.sim(sys, tstop, dt, rx, t0, q0, dq0, J, p)
-  X1 = var_soln.variational_soln(trjs_nom[0], p, sys.DxF)
-  X2 = var_soln.variational_soln(trjs_nom[-1], p, sys.DxF)
+  X1 = util.variational_soln(trjs_nom[0], p, sys.DxF)
+  X2 = util.variational_soln(trjs_nom[-1], p, sys.DxF)
   Xi = np.asarray(Xi_n1).astype(np.float64)
   Phi = X2 @ Xi @ X1
   return Phi
 
 
 if __name__ == '__main__':
-  decoupled = True
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--no-saved", help="Don't use saved data, if such data exists",
+                      action="store_true")
+  args = parser.parse_args()
+
   use_saved_data = True
+  decoupled = True
+
+  if args.no_saved:
+    use_saved_data = False
+
 
   if decoupled:
     filename = '.decoupled-'
@@ -149,3 +158,6 @@ if __name__ == '__main__':
 
   ax.set_title('Approximating perturbation of flow with its derivative')
   plt.tight_layout()
+
+  plt.ion()
+  plt.show()

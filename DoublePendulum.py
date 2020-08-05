@@ -9,6 +9,8 @@ import numpy as np
 import util
 
 class DoublePendulum:
+  DxF_lam = None
+
   @classmethod
   def M(cls, t, k, q, J, p):
     m0 = p['m0']
@@ -73,6 +75,24 @@ class DoublePendulum:
       Minv = la.inv(M)
     ddq = Minv@(-cls.C(t, k, q, dq, J, p)@dq)
     return ddq
+
+  @classmethod
+  def DxF(cls, t, k, q, dq, J, p):
+    if cls.DxF_lam is None:
+      p['symbolic'] = True
+      q_sym = sympy.symbols('q[:2]')
+      dq_sym = sympy.symbols('dq[:2]')
+
+      # k,t,J don't change ddq calculation
+      ddq_sym = sympy.Matrix(cls.ddq(0, 0, q_sym, dq_sym, [0, 0], p))
+      vec_field = sympy.Matrix.vstack(sympy.Matrix(dq_sym), ddq_sym)
+
+      DxF_sym = vec_field.jacobian(sympy.Matrix([*q_sym, *dq_sym]))
+      DxF_lam = sympy.lambdify([q_sym, dq_sym], DxF_sym)
+
+      cls.DxF_lam = DxF_lam
+
+    return np.asarray(cls.DxF_lam(q, dq)).astype(np.float64)
 
   @classmethod
   def G(cls, t, k, q, dq, J, p):
@@ -199,6 +219,7 @@ class DoublePendulum:
     #ax.add_line(line1)
 
     return ax
+
 
 if __name__ == '__main__':
   p = DoublePendulum.nominal_parameters()

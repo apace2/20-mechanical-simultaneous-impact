@@ -1,4 +1,6 @@
 # vim: expandtab tabstop=2 shiftwidth=2
+
+import argparse
 import os.path
 import numpy as np
 import matplotlib.pyplot as plt
@@ -55,10 +57,9 @@ def forward_sim_perturbation(perturb_q0):
       q0_tmp = q0_forward + np.array([0, perturb])
     trjs = util.sim(DP, tstop, dt, rx, t0, q0_tmp, dq0_forward, J, p)
 
-    #dq_final_store.append(trjs[-1]['dq'][-1])
     DQ.append(trjs[-1]['dq'][-1])
     Q.append(trjs[-1]['q'][-1])
-  #dq_final_store = np.vstack(dq_final_store)
+
   DQ = np.vstack(DQ)
   Q = np.vstack(Q)
 
@@ -67,27 +68,16 @@ def forward_sim_perturbation(perturb_q0):
 def varsim():
   dt = 1e-4  # simultaneous impact occurs in simulation
   trjs_nom = util.sim(DP, tstop, dt, rx, t0, q0_forward, dq0_forward, J, p)
-  DxF = var_soln.gen_DxF()
   assert np.all(np.isclose(trjs_nom[0]['q'][-1], np.array([0, np.arccos(-2/3)]), atol=1e-7)), \
       "Need to update saltation matrices for different impact configuration"
   assert np.all(np.isclose(trjs_nom[0]['dq'][-1], np.array([-1, 1]))), \
       "Need to update saltation matrices for different impact velocity"
 
-  #first impact guard 0 then 1
-  #salt_1_0 = np.array([[-.3, 0, 0, 0],
-  #                     [0, -.3, 0, 0],
-  #                     [-0.198761597999981, -0.258390077399976, -.3, 0],
-  #                     [-0.130809976683737, -0.566843232296196, 0, -.3]])
-  #salt_0_1 = np.array([[-.3, 0, 0, 0],
-  #                     [0, -.3, 0, 0],
-  #                     [-0.0178885438199983, -0.0775170232199927, -.3, 0],
-  #                     [-1.45344418537486, -1.88947744098732, 0, -.3]])
+  X1 = util.variational_soln(trjs_nom[0], p, DP.DxF)
+  X2 = util.variational_soln(trjs_nom[1], p, DP.DxF)
 
-  X1 = var_soln.variational_soln(trjs_nom[0], DxF)
-  X2 = var_soln.variational_soln(trjs_nom[1], DxF)
-
-  Xin1 = np.asarray(Xi_n1).astype(np.float64)
-  Xin2 = np.asarray(Xi_n2).astype(np.float64)
+  Xin1 = np.asarray(Xi_n1).astype(np.float64)  #first impact guard 1
+  Xin2 = np.asarray(Xi_n2).astype(np.float64)  #first impact guard 2
 
   Phi_10 = X2 @ Xin1 @ X1
   Phi_01 = X2 @ Xin2 @ X1
@@ -96,8 +86,16 @@ def varsim():
 
 
 if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--no-saved", help="Don't use saved data, if such data exists",
+                      action="store_true")
+  args = parser.parse_args()
+
   perturb_q0 = True
+
   use_saved_data = True
+  if args.no_saved:
+    use_saved_data = False
 
   # forward sim
   print("Forward simulate perturbations")
@@ -175,7 +173,7 @@ if __name__ == '__main__':
   ax.get_yaxis().set_visible(False)
   ax.get_xaxis().set_visible(False)
 
-  DP.draw_config(Q[0, :], p, ax=ax,  draw_a1=False)
+  DP.draw_config(Q[0, :], p, ax=ax, draw_a1=False)
   #blp = {'color':'blue'}
   #p['beam_line_param'] = blp
   #DP.draw_config(Q[0, :], p, ax=ax)
@@ -184,4 +182,3 @@ if __name__ == '__main__':
   #blp['color'] = '0'
   #zero_perturb_ind = int(len(perturbation)/2)
   #DP.draw_config(Q[zero_perturb_ind, :], p, ax=ax)
-
