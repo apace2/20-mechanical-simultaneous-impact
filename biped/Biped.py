@@ -1,9 +1,19 @@
 # vim: expandtab tabstop=2 shiftwidth=2
+import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sym
 from sympy.physics.mechanics import dynamicsymbols
 
 from hybrid import HybridSystem
+
+#parameters for drawings / animations
+body_color = 'k'
+left_color = 'b'
+right_color = 'r'
+body_style = {'linestyle':'-', 'lw':10, 'color':body_color}
+leg_style = {'linestyle':'-', 'lw':5, 'color':'grey'}
+spring_leg_style = {'linestyle':':', 'lw':5, 'color':'grey'}
+foot_style = {'marker':'o', 'markersize':15}
 
 def Rot(theta):
   R = np.array([[np.cos(theta), -np.sin(theta)],
@@ -43,6 +53,8 @@ class Biped(HybridSystem):
     q[cls.izl] = np.imag(left)
     q[cls.ixr] = np.real(right)
     q[cls.izr] = np.imag(right)
+
+    q[cls.ith] = theta
 
     #height
     q[[cls.izl, cls.izr, cls.izb]] += height
@@ -159,6 +171,32 @@ class RigidBiped(Biped):
     fg = cls.M(t, k, q, J, p)@g
     return fg
 
+  @classmethod
+  def draw_config(cls, q, p, ax=None):
+    if ax is None:
+      fig, ax = plt.subplots(1)
+
+    hipl = np.exp(1j*q[cls.ith])*(-p['wh']) + (q[cls.ixb] + 1j*q[cls.izb])
+    hipr = np.exp(1j*q[cls.ith])*(+p['wh']) + (q[cls.ixb] + 1j*q[cls.izb])
+    body = [hipl, hipr]
+    lleg = [hipl, (q[cls.ixl]+1j*q[cls.izl])]
+    rleg = [hipr, (q[cls.ixr]+1j*q[cls.izr])]
+
+    body_color = 'k'
+    left_color = 'b'
+    right_color = 'r'
+    body_style = {'linestyle':'-', 'lw':10, 'color':body_color}
+    leg_style = {'linestyle':'-', 'lw':5, 'color':'grey'}
+    foot_style = {'marker':'o', 'markersize':15}
+
+    ax.plot(np.real(body), np.imag(body), **body_style)
+    ax.plot(np.real(lleg), np.imag(lleg), **leg_style, zorder=-1)
+    ax.plot(np.real(rleg), np.imag(rleg), **leg_style, zorder=-1)
+    ax.plot(q[cls.ixl], q[cls.izl], **foot_style, color=left_color)
+    ax.plot(q[cls.ixr], q[cls.izr], **foot_style, color=right_color)
+
+    return ax
+
 class DecoupledBiped(Biped):
   Fs = None
   DxF = None
@@ -214,6 +252,25 @@ class DecoupledBiped(Biped):
     fg = cls.M(t, k, q, J, p)@g
     return fg + fs
 
+  @classmethod
+  def draw_config(cls, q, p, ax=None):
+    if ax is None:
+      fig, ax = plt.subplots(1)
+
+    hipl = np.exp(1j*q[cls.ith])*(-p['wh']) + (q[cls.ixb] + 1j*q[cls.izb])
+    hipr = np.exp(1j*q[cls.ith])*(+p['wh']) + (q[cls.ixb] + 1j*q[cls.izb])
+    body = [hipl, hipr]
+    lleg = [hipl, (q[cls.ixl]+1j*q[cls.izl])]
+    rleg = [hipr, (q[cls.ixr]+1j*q[cls.izr])]
+
+    ax.plot(np.real(body), np.imag(body), **body_style)
+    ax.plot(np.real(lleg), np.imag(lleg), **spring_leg_style, zorder=-1)
+    ax.plot(np.real(rleg), np.imag(rleg), **spring_leg_style, zorder=-1)
+    ax.plot(q[cls.ixl], q[cls.izl], **foot_style, color=left_color)
+    ax.plot(q[cls.ixr], q[cls.izr], **foot_style, color=right_color)
+
+    return ax
+
 
 class PCrBiped(DecoupledBiped):
   @classmethod
@@ -231,3 +288,9 @@ class PCrBiped(DecoupledBiped):
     f_fly[cls.ith] = p['b']*(dq[cls.izl] - dq[cls.izr])**2
     f = fp + f_fly
     return f
+
+
+if __name__ == '__main__':
+  p = RigidBiped.nominal_parameters()
+  q0, dq0, J = RigidBiped.ic(p, .1)
+  DecoupledBiped.draw_config(q0, p)
