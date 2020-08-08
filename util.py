@@ -150,6 +150,12 @@ def obs(trjs, sys, params):
 
 def sim(sys, tstop, dt, rx, t0, q0, dq0, J, params, kstop=None, k0=0):
   '''
+  tstop - final time of simulation
+  dt - nominal step size (away from guards)
+  rx - relaxation paramter
+  t0 - initial time
+      if tstop < t0 simulates system backward until t0 or the first unilateral constraint
+      is reached
   kstop - number of guard transitions to undergo before simulation stopping
   '''
   dt_nominal = dt
@@ -199,7 +205,7 @@ def sim(sys, tstop, dt, rx, t0, q0, dq0, J, params, kstop=None, k0=0):
     if np.any(g < -rx):
       dt = dt/2
       logging.info("t: {0:.5e} Step size halving. "
-             "dt:{1:4.3e} g:{2}".format(t, dt, g))
+                   "dt:{1:4.3e} g:{2}".format(t, dt, g))
       if dt < 1e-10:
         logging.warning('Step size {0:.2} is smaller than 1e-10'.format(dt))
         if 'debug' in params and params['debug']:
@@ -234,6 +240,8 @@ def sim(sys, tstop, dt, rx, t0, q0, dq0, J, params, kstop=None, k0=0):
       trjs.append(trj)
       if hasattr(sys, 'Halt') and sys.Halt(t, k, q, dq, J, params) and False:
         return trjs
+      if sim_reverse:
+        return trjs
       if kstop is not None and len(trjs) >= kstop:
         return trjs
 
@@ -243,7 +251,7 @@ def sim(sys, tstop, dt, rx, t0, q0, dq0, J, params, kstop=None, k0=0):
 
       q, dq_post, J = sys.R(t, k, q, dq, J, params)
       logging.info('t: {0:.5e}: Reset, q: {1}, dq^-: {2}, dq^+:{3}'.format(
-        t, q, dq, dq_post))
+                   t, q, dq, dq_post))
       dq = dq_post
       k = k + 1
 

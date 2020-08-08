@@ -6,12 +6,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import util
-import var_soln_DP as var_soln
 from DoublePendulum import DoublePendulum as DP
 from DP_PCr_salt import Xi_n1, Xi_n2
 
-filename_forwardsim = '.dp.forwardsim.npz'
-filename_varsim = '.dp.varsim.npz'
+filename_forwardsim = '.dp-forwardsim.npz'
+filename_varsim = '.dp-varsim.npz'
 
 p = DP.nominal_parameters()
 p['debug'] = True
