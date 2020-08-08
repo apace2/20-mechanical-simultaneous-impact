@@ -203,7 +203,6 @@ def sim(sys, tstop, dt, rx, t0, q0, dq0, J, params, kstop=None, k0=0):
     g = sys.G(t, k, x_preview[:d], x_preview[d:], J, params)
 
     if np.any(g < -rx):
-      import ipdb; ipdb.set_trace()
       dt = dt/2
       logging.info("t: {0:.5e} Step size halving. "
                    "dt:{1:4.3e} g:{2}".format(t, dt, g))

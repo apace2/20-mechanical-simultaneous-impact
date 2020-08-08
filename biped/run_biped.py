@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 
 import util
 from .Biped import Biped, PCrBiped, DecoupledBiped
@@ -18,8 +19,8 @@ def sweep_thetas(hds):
     Q = []
     dQ = []
     p['debug'] = True
-    thetas = [0.]
-    for index, theta in enumerate(thetas):
+    #for index, theta in enumerate(thetas):
+    for index, theta in enumerate(tqdm(thetas, desc="Simulating "+hds.str()+"...")):
         q0, dq0, J = hds.ic(p, theta)
         trjs = util.sim(hds, tstop, dt, rx, t0, q0, dq0, J, p)
         trj = trjs[-1]
