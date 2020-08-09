@@ -27,10 +27,6 @@ class Biped(HybridSystem):
   ixb, ixl, ixr, izb, izl, izr, ith = np.arange(N_States)
 
   @classmethod
-  def str(cls):
-    return "Biped"
-
-  @classmethod
   def ic(cls, p, theta=0, height=1.):
     '''
     input:
@@ -130,14 +126,10 @@ class RigidBiped(Biped):
   Db_sym = None
   DtDb_sym = None
 
-  @classmethod
-  def str(cls):
-    return "Rigid Biped"
-
   # derivative of bilateral constraints
   # constraints a3-a6 in the corresponding paper
   @classmethod
-  def gen_bilateral_constraints(cls):
+  def _gen_bilateral_constraints(cls):
     q = sym.Matrix(dynamicsymbols('q[:7]'))
     dq = sym.Matrix(dynamicsymbols('q[:7]', 1))
     t = sym.symbols('t')
@@ -162,7 +154,7 @@ class RigidBiped(Biped):
   @classmethod
   def Db(cls, t, k, q, J, p):
     if cls.Db_sym is None or cls.DtDb_sym is None:
-      cls.gen_bilateral_constraints()
+      cls._gen_bilateral_constraints()
     return np.asarray(cls.Db_sym(q)).astype(np.float64)
 
   @classmethod
@@ -208,10 +200,6 @@ class RigidBiped(Biped):
 class DecoupledBiped(Biped):
   Fs = None
   DxF = None
-
-  @classmethod
-  def str(cls):
-    return "Decoupled Biped"
 
   @classmethod
   def nominal_parameters(cls):
@@ -285,10 +273,6 @@ class DecoupledBiped(Biped):
 
 
 class PCrBiped(DecoupledBiped):
-  @classmethod
-  def str(cls):
-    return "PCr Biped"
-
   @classmethod
   def nominal_parameters(cls):
     p = super(PCrBiped, cls).nominal_parameters()

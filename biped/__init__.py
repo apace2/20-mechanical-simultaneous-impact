@@ -1,1 +1,1 @@
-from .Biped import Biped, PCrBiped, DecoupledBiped
+from .Biped import Biped, PCrBiped, DecoupledBiped, RigidBiped

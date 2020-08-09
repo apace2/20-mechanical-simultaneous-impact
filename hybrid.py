@@ -3,7 +3,12 @@ import copy
 from scipy import linalg as la
 import numpy as np
 
-class HybridSystem():
+class fancytype(type):
+  # from https://stackoverflow.com/questions/8144026/how-to-define-a-str-method-for-a-class
+  def __str__(cls):
+    return cls.__name__
+
+class HybridSystem(metaclass=fancytype):
   N_States = None  #number of configuration states
 
   @classmethod
@@ -20,10 +25,12 @@ class HybridSystem():
   @classmethod
   def G(cls, t, k, q, dq, J, p):
     a = cls.a(t, k, q, J, p)
-    lamb = cls.lamb(t, k, q, dq, J, p)  #constraint force
+    lamb = cls.lamb(t, k, q, dq, J, p)  #constraint force for unilat and bilateral
     g = np.zeros_like(J) * np.nan
     g[np.logical_not(J)] = a[np.logical_not(J)]
-    g[J] = lamb
+    #g[J] = lamb[:np.sum(J)]
+    for lambind, gind in enumerate(np.where(J)[0]):
+      g[gind] = lamb[lambind]
 
     return g
 
