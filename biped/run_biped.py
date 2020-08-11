@@ -1,12 +1,15 @@
 # vim: expandtab tabstop=2 shiftwidth=2
 
 import argparse
-import numpy as np
 import os
 import pickle
+import numpy as np
 from tqdm import tqdm
 
+import biped
 import util
+
+from . import _data_folder
 from .Biped import RigidBiped, PCrBiped, DecoupledBiped
 
 perturbation_suffix = '_perturb.npz'
@@ -51,16 +54,16 @@ if __name__ == '__main__':
   args = parser.parse_args()
 
   for sys in [RigidBiped, DecoupledBiped]:
-    filename = '.'+str(sys)+perturbation_suffix
+    filename = _data_folder / '.'+str(sys)+perturbation_suffix
     if os.path.exists(filename) and not args.no_saved:
       print("Data already exists in file :"+filename)
       print("Not regenerating the data")
       continue
 
-    thetas, Q, dQ = sweep_thetas(sys)
+    thetas, Q, dQ, _ = sweep_thetas(sys)
     np.savez(filename, thetas=thetas, Q=Q, dQ=dQ)
 
-  filename = '.'+str(PCrBiped)+perturbation_suffix
+  filename = _data_folder / '.'+str(PCrBiped)+perturbation_suffix
   if os.path.exists(filename) and not args.no_saved:
     print("Data already exists in file :"+filename)
     print("Not regenerating the data")
@@ -68,4 +71,4 @@ if __name__ == '__main__':
   else:
     thetas, Q, dQ, trjsList = sweep_thetas(PCrBiped, complete_trjs=True)
     np.savez(filename, thetas=thetas, Q=Q, dQ=dQ)
-    pickle.dump(trjsList, os.open('.PCr_trjs.pkl', 'wb'))
+    pickle.dump(trjsList, open(_data_folder / '.PCr_trjs.pkl', 'wb'))

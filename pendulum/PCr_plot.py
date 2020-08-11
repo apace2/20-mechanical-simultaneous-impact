@@ -6,11 +6,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import util
-from DoublePendulum import DoublePendulum as DP
-from DP_PCr_salt import Xi_n1, Xi_n2
+from .DoublePendulum import DoublePendulum as DP
+from .DP_PCr_salt import Xi_n1, Xi_n2
+from . import _data_folder
 
-filename_forwardsim = '.dp-forwardsim.npz'
-filename_varsim = '.dp-varsim.npz'
+filename_forwardsim = _data_folder / '.dp-forwardsim.npz'
+filename_varsim = _data_folder / '.dp-varsim.npz'
 
 p = DP.nominal_parameters()
 p['debug'] = True
@@ -100,7 +101,7 @@ if __name__ == '__main__':
   print("Forward simulate perturbations")
   if os.path.exists(filename_forwardsim) and use_saved_data:
     with np.load(filename_forwardsim) as data:
-      print('>>>>>Using data from '+filename_forwardsim)
+      print('>>>>>Using data from '+str(filename_forwardsim))
       perturbation = data['perturbation']
       Q = data['Q']
       DQ = data['DQ']
@@ -116,7 +117,7 @@ if __name__ == '__main__':
   print("Calculate variational solution")
   if os.path.exists(filename_varsim) and use_saved_data:
     with np.load(filename_varsim) as data:
-      print('>>>>>Using data from: '+filename_varsim)
+      print('>>>>>Using data from: '+str(filename_varsim))
       Phi_10 = data['Phi_10']
       Phi_01 = data['Phi_01']
 

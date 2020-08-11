@@ -6,7 +6,6 @@ from scipy import linalg as la
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import numpy as np
-import util
 
 class DoublePendulum:
   DxF_lam = None
@@ -225,5 +224,6 @@ if __name__ == '__main__':
   p = DoublePendulum.nominal_parameters()
   rho = DoublePendulum.simultaneous_impact_configuration(p)
 
+  plt.ion()
   fig, ax = plt.subplots(1)
   DoublePendulum.draw_config(rho, p, ax=ax, draw_a1=False)

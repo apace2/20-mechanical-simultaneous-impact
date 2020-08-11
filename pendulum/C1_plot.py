@@ -6,8 +6,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import util
-from DecoupledDP import DecoupledDP as DDP
-from dp_c1 import Xi_n1
+from .DecoupledDP import DecoupledDP as DDP
+from .dp_c1 import Xi_n1
+from . import _data_folder
 
 
 forwardsim_suffix = 'fowardsim.npz'
@@ -112,10 +113,10 @@ if __name__ == '__main__':
     perturb_dir = np.array([1., 0, 0, 0])
 
   print("Forward simulate perturbations")
-  filename_forwardsim = filename+forwardsim_suffix
+  filename_forwardsim = _data_folder / (filename+forwardsim_suffix)
   if os.path.exists(filename_forwardsim) and use_saved_data:
     with np.load(filename_forwardsim) as data:
-      print('>>>>>Using data from '+filename_forwardsim)
+      print('>>>>>Using data from '+str(filename_forwardsim))
       pert_mag = data['perturbation']
       perturb_dir = data['perturbation_dir']
       Q = data['Q']
@@ -128,10 +129,10 @@ if __name__ == '__main__':
 
   print('')
   print("Calculate variational solution")
-  filename_varsim = filename+varsim_suffix
+  filename_varsim = _data_folder / (filename+varsim_suffix)
   if os.path.exists(filename_varsim) and use_saved_data:
     with np.load(filename_varsim) as data:
-      print('>>>>>Using data from: '+filename_varsim)
+      print('>>>>>Using data from: '+str(filename_varsim))
       Phi = data['Phi']
 
   else:

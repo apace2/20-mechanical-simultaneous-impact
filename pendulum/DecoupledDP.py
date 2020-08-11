@@ -209,6 +209,6 @@ if __name__ == '__main__':
   p = DecoupledDP.nominal_parameters()
   rho = DecoupledDP.simultaneous_impact_configuration(p)
 
+  plt.ion()
   fig, ax = plt.subplots(1)
   DecoupledDP.draw_config(rho, p, ax=ax)
-
