@@ -531,16 +531,20 @@ def mechanics_memoization(func):
   '''
   Very very basic, save most recent call
   assumes function call args are of the form
-  func(self, k, t, J, q, dq, p)
+  func(self, t, k, q, dq, J, p)
+  where q, dq, J are all numpy arrays
+  and p is a dict
   '''
   num_args = 6
   func.last_args = [None]*num_args
   func.last_value = None
 
+  order = {'t':1, 'k':2, 'q':3, 'dq':4, 'J':5, 'p':6}
+
   def decorator(*args):
     same_last_arg = False
-    for i in [4, 5, 1, 2, 3, 6]:
-      if i in [3, 4, 5]:
+    for i in [order['q'], order['dq'], order['t'], order['k'], order['J'], order['p']]:
+      if i in [order['J'], order['q'], order['dq']]:  #arguments that are arrays
         if func.last_args[i] is not None and (func.last_args[i][0] != args[i][0] or not np.all(func.last_args[i] == args[i])):
           break
       else:
@@ -552,7 +556,8 @@ def mechanics_memoization(func):
     if same_last_arg:
       return func.last_value
     value = func(*args)
-    func.last_args = args
+    func.lat_args = args
+    #func.last_args = copy.deepcopy(args)
     func.last_value = value
 
     return value

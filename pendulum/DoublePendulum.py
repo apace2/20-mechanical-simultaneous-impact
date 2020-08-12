@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import numpy as np
 
+import util
+
 class DoublePendulum:
   DxF_lam = None
 
@@ -61,6 +63,7 @@ class DoublePendulum:
     return C
 
   @classmethod
+  @util.mechanics_memoization
   def ddq(cls, t, k, q, dq, J, p):
     '''
     No external forces
