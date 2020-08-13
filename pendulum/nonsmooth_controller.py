@@ -7,10 +7,10 @@ import os
 from scipy import optimize as opt
 from tqdm import tqdm
 
+import util
 from .UnderactuatedDP import UnderactuatedDP
 from .DoublePendulum import DoublePendulum as DP
 from . import _data_folder
-import util
 
 filename = _data_folder / '.nonsmooth_control.npz'
 
@@ -61,24 +61,20 @@ def generate_nonsmooth_controller():
     trjs = util.sim(UnderactuatedDP, tstop, dt, rx, t0, q0+q0_pert, dq0, J, p_run)
     return trjs[-1]['q'][-1][1] - desired_q1
 
-
   Tau = []
   pert_mag = np.arange(-.2, .2, .01)
-  for mag in tqdm(pert_mag, desc="Finding controller..."):
+  for mag in tqdm(pert_mag, desc="Calculating control law..."):
     perturbation = pert_dir*mag
 
     # bound the input, otherwise the simulation does not finish
     if mag < -.1:
       bracket = [-.1, 1]
 
-    elif mag >= -.1 and mag < .09:
+    elif mag >= -.1 and mag < .06:
       bracket = [-.1, .1]
 
-    elif mag >= .09 and mag < .35:
+    elif mag >= .06 and mag < .35:
       bracket = [-.5, 1]
-
-    elif mag >= .35 and mag < .43:
-      bracket = [-1., 1]
 
     soln = opt.root_scalar(final_q1_given_tau, method='bisect',
                            bracket=bracket, x0=0, args=(perturbation,))
@@ -103,18 +99,45 @@ def generate_nonsmooth_controller():
     DQ.append(trjs[-1]['dq'][-1])
 
     # Resulting uncontrolled state
-    trjs = util.sim(UnderactuatedDP, tstop, dt, rx, t0, q0+q0_pert, dq0, J, p_control)
+    trjs = util.sim(DP, tstop, dt, rx, t0, q0+q0_pert, dq0, J, p)
     Q_NoControl.append(trjs[-1]['q'][-1])
     DQ_NoControl.append(trjs[-1]['dq'][-1])
 
   np.savez(filename, perturbation=pert_mag, perturbation_dir=pert_dir, tau=Tau,
-           QFinal=Q, DQFinal=DQ, Q_NoControlFinal=Q_NoControl, DQFinal_NoControl=DQ_NoControl)
+           QFinal=Q, DQFinal=DQ, Q_NoControlFinal=Q_NoControl, DQFinal_NoControl=DQ_NoControl,
+           q0=q0, dq0=dq0)
 
 def plot_nonsmooth_controller():
+  plt.ion()
   data = np.load(filename)
   pert_dir = data['perturbation_dir']
   pert_mag = data['perturbation']
   tau = data['tau']
+  q = data['QFinal']
+  q_nc = data['Q_NoControlFinal']
+  q0 = data['q0']
+
+  #limit data to range [-.1, .1] of pert_mag
+  ind = np.where(np.logical_and(pert_mag>=-.1, pert_mag<=.1))[0]
+
+  fig = plt.figure()
+  ax0 = plt.subplot(2, 1, 1)
+  ax1 = plt.subplot(2, 1, 2, sharex=ax0)
+
+  ax = [ax0, ax1]
+
+  ax[0].plot(pert_mag[ind]+q0[0], tau[ind])
+  ax[0].plot(pert_mag[ind]+q0[0], np.zeros_like(tau[ind]))
+  ax[0].set_ylabel(r'Applied constant torque' '\n' r'$\tau$')
+
+  ax[1].plot(pert_mag[ind]+q0[0], q[ind, 1])
+  ax[1].plot(pert_mag[ind]+q0[0], q_nc[ind, 1])
+  ax[1].set_ylabel(r'Final Elbow Rotation' '\n' r'$\theta_2(t_f)$')
+  ax[1].legend(['Nonsmooth controller', 'No control'])
+  ax[1].set_xlabel(r'Initial Shoulder Rotation' '\n' r'$\theta_1(0)$')
+
+  ax[0].title('Underactuated Double Pendulum')
+  plt.tight_layout()
 
 
 if __name__ == '__main__':
