@@ -1,5 +1,6 @@
 # vim: expandtab tabstop=2 shiftwidth=2
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
 import sympy as sym
 from sympy.physics.mechanics import dynamicsymbols
@@ -10,15 +11,41 @@ from hybrid import HybridSystem
 body_color = 'k'
 left_color = 'b'
 right_color = 'r'
-body_style = {'linestyle':'-', 'lw':10, 'color':body_color}
-leg_style = {'linestyle':'-', 'lw':5, 'color':'grey'}
-spring_leg_style = {'linestyle':':', 'lw':5, 'color':'grey'}
-foot_style = {'marker':'o', 'markersize':15}
+default_body_style = {'linestyle':'-', 'lw':10, 'color':body_color}
+default_leg_style = {'linestyle':'-', 'lw':5, 'color':'grey'}
+default_spring_leg_style = {'lw':5, 'color':'grey'}
+default_foot_style = {'marker':'o', 'markersize':20}
+default_flywheel_style = {'marker':'o', 'markersize':50, 'color':'darkgrey', 'zorder':-1}
+default_gnd_style = {'facecolor':'brown', 'edgecolor':'black', 'hatch':'/', 'fill':True}
+
 
 def Rot(theta):
   R = np.array([[np.cos(theta), -np.sin(theta)],
                 [np.sin(theta), np.cos(theta)]])
   return R
+
+def draw_ground(ax, p, z=0, depth=.1, xc=0, width=1):
+  '''
+  Draw a patch representing the ground
+
+  inputs:
+    ax - axis to draw on
+    p - parameter dict
+    z - z height
+    depth - how tall to draw the path
+    xc - center of path
+    width - width of the patch
+  '''
+
+  if 'gnd_style' in p:
+    gnd_style = p['gnd_style']
+  else:
+    gnd_style = default_gnd_style
+
+  rect = patches.Rectangle((xc-width/2, z-depth), width, depth, **gnd_style)
+  ax.add_patch(rect)
+  return ax
+
 
 class Biped(HybridSystem):
   N_States = 7
@@ -82,6 +109,7 @@ class Biped(HybridSystem):
     p['l'] = 1/2.
     p['wh'] = p['l']/2.
     p['gamma'] = 0  # perfectly plastic impacts
+    p['quick_observ'] = True  #calculate only minimal state values when returning O
     return p
 
   #  unilateral constraint
@@ -182,12 +210,20 @@ class RigidBiped(Biped):
     lleg = [hipl, (q[cls.ixl]+1j*q[cls.izl])]
     rleg = [hipr, (q[cls.ixr]+1j*q[cls.izr])]
 
-    body_color = 'k'
-    left_color = 'b'
-    right_color = 'r'
-    body_style = {'linestyle':'-', 'lw':10, 'color':body_color}
-    leg_style = {'linestyle':'-', 'lw':5, 'color':'grey'}
-    foot_style = {'marker':'o', 'markersize':15}
+    if 'body_style' in p:
+      body_style = p['body_style']
+    else:
+      body_style = default_body_style
+
+    if 'leg_style' in p:
+      leg_style = p['leg_style']
+    else:
+      leg_style = default_leg_style
+
+    if 'foot_style' in p:
+      foot_style = p['foot_style']
+    else:
+      foot_style = default_foot_style
 
     ax.plot(np.real(body), np.imag(body), **body_style)
     ax.plot(np.real(lleg), np.imag(lleg), **leg_style, zorder=-1)
@@ -253,6 +289,29 @@ class DecoupledBiped(Biped):
     return fg + fs
 
   @classmethod
+  def spring(cls, z0, z1, a=.2, b=.6, c=.2, h=1., p=4, N=100):
+    '''
+    Generate coordinates for a spring (in imaginary coordinates)
+
+    From - Sam Burden
+
+    input:
+      z0, z1 - initial/ final coordinates (imaginary)
+      a, b, c - relative ratio of inital straight to squiggle to final straight
+                line segments
+      h - width of squiggle
+      N - number of points
+    '''
+
+    x = np.linspace(0., a+b+c, N)
+    y = 0.*x
+    mb = int(N*a/(a+b+c))
+    Mb = int(N*(a+b)/(a+b+c))
+    y[mb:Mb] = np.mod(np.linspace(0., p-.01, Mb-mb), 1.)-0.5
+    z = ((np.abs(z1-z0)*x + 1.j*h*y)) * np.exp(1.j*np.angle(z1-z0)) + z0
+    return z
+
+  @classmethod
   def draw_config(cls, q, p, ax=None):
     if ax is None:
       fig, ax = plt.subplots(1)
@@ -263,20 +322,52 @@ class DecoupledBiped(Biped):
     lleg = [hipl, (q[cls.ixl]+1j*q[cls.izl])]
     rleg = [hipr, (q[cls.ixr]+1j*q[cls.izr])]
 
+    if 'body_style' in p:
+      body_style = p['body_style']
+    else:
+      body_style = default_body_style
+
+    if 'spring_leg_style' in p:
+      spring_leg_style = p['spring_leg_style']
+    else:
+      spring_leg_style = default_spring_leg_style
+
+    if 'foot_style' in p:
+      foot_style = p['foot_style']
+    else:
+      foot_style = default_foot_style
+
     ax.plot(np.real(body), np.imag(body), **body_style)
-    ax.plot(np.real(lleg), np.imag(lleg), **spring_leg_style, zorder=-1)
-    ax.plot(np.real(rleg), np.imag(rleg), **spring_leg_style, zorder=-1)
+    #ax.plot(np.real(lleg), np.imag(lleg), **spring_leg_style, zorder=-1)
+    #ax.plot(np.real(rleg), np.imag(rleg), **spring_leg_style, zorder=-1)
+    lleg_spring = cls.spring(lleg[0], lleg[1], h=.1)
+    rleg_spring = cls.spring(rleg[0], rleg[1], h=.1)
+    ax.plot(np.real(lleg_spring), np.imag(lleg_spring), **spring_leg_style, zorder=-1)
+    ax.plot(np.real(rleg_spring), np.imag(rleg_spring), **spring_leg_style, zorder=-1)
     ax.plot(q[cls.ixl], q[cls.izl], **foot_style, color=left_color)
     ax.plot(q[cls.ixr], q[cls.izr], **foot_style, color=right_color)
 
+    ax = draw_ground(ax, p)
     return ax
 
 
 class PCrBiped(DecoupledBiped):
   @classmethod
+  def draw_config(cls, q, p, ax=None):
+    ax = super(PCrBiped, cls).draw_config(q, p, ax)
+
+    #draw the flywheel
+    if 'flywheel_style' in p:
+      ax.plot(q[cls.ixb], q[cls.izb], **p['flywheel_style'])
+
+    else:
+      ax.plot(q[cls.ixb], q[cls.izb], **default_flywheel_style)
+    return ax
+
+  @classmethod
   def nominal_parameters(cls):
     p = super(PCrBiped, cls).nominal_parameters()
-    p['b'] = 1  #actuated flywheel forces
+    p['b'] = 1.5  #actuated flywheel forces
     return p
 
   @classmethod
@@ -291,6 +382,9 @@ class PCrBiped(DecoupledBiped):
 
 
 if __name__ == '__main__':
+  plt.ion()
   p = RigidBiped.nominal_parameters()
   q0, dq0, J = RigidBiped.ic(p, .1)
-  DecoupledBiped.draw_config(q0, p)
+  ax = PCrBiped.draw_config(q0, p)
+  ax.axis('off')
+  plt.tight_layout()

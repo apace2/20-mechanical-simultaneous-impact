@@ -54,18 +54,18 @@ if __name__ == '__main__':
   args = parser.parse_args()
 
   for sys in [RigidBiped, DecoupledBiped]:
-    filename = _data_folder / '.'+str(sys)+perturbation_suffix
+    filename = _data_folder / ('.' + str(sys)+perturbation_suffix)
     if os.path.exists(filename) and not args.no_saved:
-      print("Data already exists in file :"+filename)
+      print("Data already exists in file :", filename)
       print("Not regenerating the data")
       continue
 
     thetas, Q, dQ, _ = sweep_thetas(sys)
     np.savez(filename, thetas=thetas, Q=Q, dQ=dQ)
 
-  filename = _data_folder / '.'+str(PCrBiped)+perturbation_suffix
+  filename = _data_folder / ('.'+str(PCrBiped)+perturbation_suffix)
   if os.path.exists(filename) and not args.no_saved:
-    print("Data already exists in file :"+filename)
+    print("Data already exists in file :", filename)
     print("Not regenerating the data")
 
   else:
