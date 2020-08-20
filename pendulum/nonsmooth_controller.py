@@ -10,7 +10,7 @@ from tqdm import tqdm
 import util
 from .UnderactuatedDP import UnderactuatedDP
 from .DoublePendulum import DoublePendulum as DP
-from . import _data_folder
+from . import _data_folder, _fig_folder
 
 filename = _data_folder / '.nonsmooth_control.npz'
 
@@ -136,8 +136,10 @@ def plot_nonsmooth_controller():
   ax[1].legend(['Nonsmooth controller', 'No control'])
   ax[1].set_xlabel(r'Initial Shoulder Rotation' '\n' r'$\theta_1(0)$')
 
-  ax[0].title('Underactuated Double Pendulum')
+  ax[0].set_title('Underactuated Double Pendulum')
   plt.tight_layout()
+
+  plt.savefig(_fig_folder/'nonsmooth_controller.png')
 
 
 if __name__ == '__main__':

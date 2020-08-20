@@ -159,13 +159,33 @@ class DoublePendulum:
     return np.array([-1, 1])
 
   @classmethod
+  def x0(cls, t, p):
+    '''
+    t - time till simultaneous impact
+    p - dictionary of parameters
+    '''
+    J = [0, 0]
+    dt = 1e-3
+    rx = 1e-7
+    t0 = 0
+
+    rho = cls.simultaneous_impact_configuration(p)
+    drho = cls.simultaneous_impact_velocity()
+    tstop = -t
+    trjs = util.sim(cls, tstop, dt, rx, t0, rho, drho, J, p)
+    q0 = trjs[-1]['q'][-1]
+    dq0 = trjs[-1]['dq'][-1]
+
+    return q0, dq0
+
+  @classmethod
   def nominal_parameters(cls):
     p = {'m0':1, 'm1':1, 'l0':.5, 'l1':2/7}
     p['gamma'] = .3
     return p
 
   @classmethod
-  def draw_config(cls, q, p, draw_a1=True, ax=None):
+  def draw_config(cls, q, p, draw_a1=True, ax=None, color=None):
     '''Draw the configuration of the double pendulum
 
     q - [theta0, theta1]
@@ -181,7 +201,10 @@ class DoublePendulum:
     '''
 
     default_constraint_lp = {'color':'.8'}
-    default_beam_lp = {'color': 'blue'}
+    if color is None:
+      default_beam_lp = {'color': 'blue'}
+    else:
+      default_beam_lp = {'color': color}
     if ax is None:
       _, ax = plt.subplots(1)
 
@@ -205,7 +228,10 @@ class DoublePendulum:
       linec = mlines.Line2D([P1[0], PC[0]], [P1[1], PC[1]], **lp)
       ax.add_line(linec)
 
-    lc = 'blue'
+    if color is None:
+      lc = 'blue'
+    else:
+      lc = color
     mec = 'orange'  #marker edge color
     plot_params = {'marker':'o', 'linestyle':'-', 'markersize':15,
                    'lw':10, 'mec':mec, 'mew':5, 'mfc':lc, 'color':lc}
@@ -224,9 +250,41 @@ class DoublePendulum:
 
 
 if __name__ == '__main__':
+  plt.ion()
   p = DoublePendulum.nominal_parameters()
   rho = DoublePendulum.simultaneous_impact_configuration(p)
 
+  t = .7
+  q0, dq0 = DoublePendulum.x0(t, p)
+
+  def set_lim(ax):
+    ax.axis('equal')
+    ax.set(xlim=(-.2,.7), ylim=(-.1,.7))
+
   plt.ion()
+
   fig, ax = plt.subplots(1)
-  DoublePendulum.draw_config(rho, p, ax=ax, draw_a1=False)
+  DoublePendulum.draw_config(rho, p, ax=ax, draw_a1=False, color='black')
+  set_lim(ax)
+  ax.set_title('Configuration at simultaneous impact')
+  fig.savefig('sim_impact.png')
+
+  fig, ax = plt.subplots(1)
+  DoublePendulum.draw_config(q0, p, ax=ax, draw_a1=False, color='black')
+  set_lim(ax)
+  ax.set_title('Configuration at t=0')
+  plt.savefig('q0.png')
+
+  #fig, ax = plt.subplots(1)
+  q0plus = q0 + np.array([1, 0]) * .05
+  DoublePendulum.draw_config(q0plus, p, ax=ax, draw_a1=False)
+  set_lim(ax)
+  plt.savefig('q0plus.png')
+
+
+  fig, ax = plt.subplots(1)
+  q0minus = q0 + np.array([1, 0]) * -.05
+  DoublePendulum.draw_config(q0, p, ax=ax, draw_a1=False, color='black')
+  DoublePendulum.draw_config(q0minus, p, ax=ax, draw_a1=False, color='red')
+  set_lim(ax)
+  plt.savefig('q0minus.png')
