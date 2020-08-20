@@ -13,9 +13,9 @@ left_color = 'b'
 right_color = 'r'
 default_body_style = {'linestyle':'-', 'lw':10, 'color':body_color}
 default_leg_style = {'linestyle':'-', 'lw':5, 'color':'grey'}
-default_spring_leg_style = {'lw':5, 'color':'grey'}
-default_foot_style = {'marker':'o', 'markersize':20}
-default_flywheel_style = {'marker':'o', 'markersize':50, 'color':'darkgrey', 'zorder':-1}
+default_spring_leg_style = {'lw':3, 'color':'grey'}
+default_foot_style = {'marker':'o', 'markersize':15}
+default_flywheel_style = {'marker':'o', 'markersize':25, 'color':'darkgrey', 'zorder':-1}
 default_gnd_style = {'facecolor':'brown', 'edgecolor':'black', 'hatch':'/', 'fill':True}
 
 
@@ -154,6 +154,29 @@ class RigidBiped(Biped):
   Db_sym = None
   DtDb_sym = None
 
+  @classmethod
+  def R(cls, t, k, q, dq, J, p):
+    '''
+    The RigidBiped behaves like the rocking block,
+    unless both unilateral constraints activate at the same instant,
+    the activation of one constraint causes the other to become inactive
+
+    Always assuming plastic collision
+    '''
+    assert p['gamma'] == 0
+
+    a = cls.a(t, k, q, J, p)
+    Jimpact = a < 0
+    if np.sum(J) == 1:  #that is one constraint is active
+      Jnew = np.logical_not(J)
+    else:
+      Jnew = Jimpact
+
+    Delta = cls.Delta(t, k, q, dq, Jnew, p)
+    dq_ = Delta@dq
+
+    return q, dq_, Jnew
+
   # derivative of bilateral constraints
   # constraints a3-a6 in the corresponding paper
   @classmethod
@@ -231,6 +254,7 @@ class RigidBiped(Biped):
     ax.plot(q[cls.ixl], q[cls.izl], **foot_style, color=left_color)
     ax.plot(q[cls.ixr], q[cls.izr], **foot_style, color=right_color)
 
+    ax = draw_ground(ax, p)
     return ax
 
 class DecoupledBiped(Biped):

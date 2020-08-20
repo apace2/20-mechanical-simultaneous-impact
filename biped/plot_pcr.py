@@ -29,7 +29,8 @@ body_style = {'linestyle':'-', 'lw':10, 'color':'black'}
 # plot parameters
 font = {'family':'sans-serif', 'size':12}
 mpl.rc('font', **font)
-xlim = (-.3, .3)
+xlim_plot = (-.3, .3)
+ylim_plot = (-.3, .3)
 lwl = 8
 lwn = 4
 ms = 12
@@ -68,11 +69,11 @@ ms = 10
 lw_regions = 1
 lw_guard = 2
 lw_trj = 1.5
-t_offset = -1
+t_offset = -1  # simultaneous impact occurs at t=1 for the nominal configuration
 
 tvals = [.9, 1.1]
 #tvals = np.array([.75, 1.1]) + t_offset
-tvals = [-.25, .1]
+tvals = [-.25, .1]  # values at which to plot cross sections
 
 theta_ind = 6
 zl_ind = 1
@@ -205,7 +206,6 @@ plot_theta_time(ind_r, c_trj_r, ax1)
 
 assert len(data) == 61
 # manually choosing the indices
-#indices = [10, 20, 30, 40, 50]
 indices = [10, 17, 24, 30, 36, 43, 50]
 mid = 30
 
@@ -284,17 +284,14 @@ for t, ax in zip(tvals, [ax1ins_pre, ax1ins_post]):
     xhl = hl * xwidth
     yhw = hw * .15
     yhl = hl * .7
-    ax.arrow(xstart, 0, xwidth, 0, fc=ac, ec=ac, lw=1, head_width=xhw, head_length=xhl, ls='-', length_includes_head=True,
+    ax.arrow(xstart, 0, xwidth, 0, fc=ac, ec=ac, lw=1, head_width=xhw, head_length=xhl, ls='-',
+             length_includes_head=True,
              overhang=ohg)
     ax.arrow(0, ylim[0], 0, ywidth, fc=ac, ec=ac, lw=1, head_width=yhw, head_length=yhl, ls='-',
              length_includes_head=True, overhang=ohg)
 
-#ax1.legend(loc='lower left', bbox_to_anchor=(1.01, .8), ncol=1)
-
-#ax1.set_xlim((.8, 1.2))
-ax1.set_ylim((.7, 1.3))
-ax1.set_ylim((-.3, .3))
-ax1.set_xlim((-.3, .3))
+ax1.set_ylim(ylim_plot)
+ax1.set_xlim(xlim_plot)
 # flip the y axis
 ax1.invert_yaxis()
 
@@ -303,10 +300,18 @@ if nofigurefirst:
     sys.exit(0)
 
 #draw the diagrams
-def draw_fig(ax, q, p):
+def draw_fig(ax, ind, tval, p):
+    color = cmap_tot(color_scale(ind/len(data)))
+    p['body_style']['color'] = color
+    t, q, dq, o = util.obs(data[ind], PCrBiped, p)
+
+    tind = np.argmin(np.abs(t-tval))
+    q = q[tind]
+
     PCrBiped.draw_config(q, p, ax)
     ax.axis('off')
     ax.set_ylim((-.1, 1.2))
+
 
 p = PCrBiped.nominal_parameters()
 p['flywheel_style'] = flywheel_style
@@ -316,20 +321,16 @@ p['body_style'] = body_style
 
 ax = layout.axes['diag_pos_ic']
 ind = indices[-1]
-color = cmap_tot(color_scale(ind/len(data)))
-p['body_style']['color'] = color
-draw_fig(ax, data[ind][0]['q'][0], p)
+draw_fig(ax, ind, tvals[0]-t_offset, p)
 
 ax = layout.axes['diag_pos_final']
-draw_fig(ax, data[ind][-1]['q'][-1], p)
+draw_fig(ax, ind, tvals[1]-t_offset, p)
 
 ind = indices[0]
-color = cmap_tot(color_scale(ind/len(data)))
-p['body_style']['color'] = color
 ax = layout.axes['diag_neg_ic']
-draw_fig(ax, data[ind][0]['q'][0], p)
+draw_fig(ax, ind, tvals[0]-t_offset, p)
 ax = layout.axes['diag_neg_final']
-draw_fig(ax, data[ind][-1]['q'][-1], p)
+draw_fig(ax, ind, tvals[1]-t_offset, p)
 
 #layout.write_svg('test.svg')
 filename = _fig_folder / figname

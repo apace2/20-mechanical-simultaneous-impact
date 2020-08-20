@@ -28,7 +28,6 @@ class HybridSystem(metaclass=fancytype):
     lamb = cls.lamb(t, k, q, dq, J, p)  #constraint force for unilat and bilateral
     g = np.zeros_like(J) * np.nan
     g[np.logical_not(J)] = a[np.logical_not(J)]
-    #g[J] = lamb[:np.sum(J)]
     for lambind, gind in enumerate(np.where(J)[0]):
       g[gind] = lamb[lambind]
 
@@ -45,7 +44,24 @@ class HybridSystem(metaclass=fancytype):
 
   @classmethod
   def R(cls, t, k, q, dq, J, p):
+    '''
+    This is not a general reset law mechanical systems s.t. unilateral constraints;
+    assumes orthogonal constraints
+
+    The determination of post-impact configuration for mechanical systems
+    subject to unilateral constraints does not always have a straightforward solution
+
+    Does not handle deactivations
+    '''
     a = cls.a(t, k, q, J, p)
+    g = cls.G(t, k, q, dq, J, p)
+    ind_act = np.where(a == g)[0]  # constraints that may undergo activation
+    ind_deact = np.where(a != g)[0]  # constraints that may undergo deactivation
+    if np.any(g[ind_deact] < 0):
+      print("Reset does not currently handle deactivations")
+      print("Stopping...")
+      import sys
+      sys.exit()
     Jimpact = a < 0
     Jnew = np.logical_or(J, Jimpact)
     Delta = cls.Delta(t, k, q, dq, Jnew, p)

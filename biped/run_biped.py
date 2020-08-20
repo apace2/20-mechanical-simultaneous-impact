@@ -14,16 +14,19 @@ from .Biped import RigidBiped, PCrBiped, DecoupledBiped
 
 perturbation_suffix = '_perturb.npz'
 
-def sweep_thetas(hds, complete_trjs=False):
-  thetas = np.arange(-.3, .31, .01)
+def sweep_thetas(hds, thetas=None, complete_trjs=False):
+  if thetas is None:
+    thetas = np.arange(-.3, .31, .01)
+  #thetas = np.arange(-.2, .21, .01)
   thetas[np.abs(thetas) < 1e-6] = 0.
 
   p = hds.nominal_parameters()
 
   rx = 1e-5
   dt = 1e-3
+  dt = 1e-2
   t0 = 0
-  tstop = 1.3
+  tstop = 1.4
 
   Q = []
   dQ = []
@@ -32,10 +35,14 @@ def sweep_thetas(hds, complete_trjs=False):
     q0, dq0, J = hds.ic(p, theta)
     J = [False, False]
     trjs = util.sim(hds, tstop, dt, rx, t0, q0, dq0, J, p)
-    trj = trjs[-1]
+    if len(trjs) != 3 and theta != 0:
+      print('*************')
+      print('Warning: a trajectory with nonzero perturbation does not have 3 mode transitions')
+      print('Number of transitions: '+str(len(trjs)))
+      print('Initial theta: '+str(theta))
 
-    Q.append(trj['q'])
-    dQ.append(trj['dq'])
+    Q.append(trjs[-1]['q'][-1])
+    dQ.append(trjs[-1]['dq'][-1])
     if complete_trjs:
       trjsList.append(trjs)
 
@@ -60,7 +67,12 @@ if __name__ == '__main__':
       print("Not regenerating the data")
       continue
 
-    thetas, Q, dQ, _ = sweep_thetas(sys)
+    if sys is RigidBiped:
+      # narrower range thetas
+      thetas = np.arange(-.21, .22, .01)
+      thetas, Q, dQ, _ = sweep_thetas(sys, thetas=thetas)
+    else:
+      thetas, Q, dQ, _ = sweep_thetas(sys)
     np.savez(filename, thetas=thetas, Q=Q, dQ=dQ)
 
   filename = _data_folder / ('.'+str(PCrBiped)+perturbation_suffix)
