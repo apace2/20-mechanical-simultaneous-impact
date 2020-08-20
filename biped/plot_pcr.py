@@ -35,23 +35,13 @@ lwn = 4
 ms = 12
 
 try:
-    filename = _data_folder / ('.RigidBiped'+perturbation_suffix)
-    data_discon = np.load(filename)
-
-    filename = _data_folder / ('.PCrBiped'+perturbation_suffix)
-    data_pcr = np.load(filename)
-
     filename_trjs = _data_folder / ('.PCr_trjs.pkl')
-
-    filename = _data_folder / ('.DecoupledBiped'+perturbation_suffix)
-    data_c1 = np.load(filename)
+    data = pickle.load(filename_trjs.open(mode='rb'))
 
 except FileNotFoundError:
     print("Not all data files exist.")
     print("Please run `biped\\run_biped.py`")
     sys.exit(0)
-
-
 
 if nofigurefirst:
     plt.rc('text', usetex=True)
@@ -88,7 +78,6 @@ theta_ind = 6
 zl_ind = 1
 zr_ind = 3
 num_states = 7
-data = pickle.load(open(filename_trjs, 'rb'))
 
 # a colormap: [0,1] -> (R,G,B,A), with rgba \in [0,1]
 # sort of ...

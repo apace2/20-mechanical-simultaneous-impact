@@ -39,7 +39,8 @@ class HybridSystem(metaclass=fancytype):
     o = {}
     o['q'] = q
     o['dq'] = dq
-    o['g'] = cls.G(t, k, q, dq, J, p)
+    if 'quick_observ' not in p:
+      o['g'] = cls.G(t, k, q, dq, J, p)
     return o
 
   @classmethod
