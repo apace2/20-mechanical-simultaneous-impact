@@ -14,7 +14,7 @@ from .Biped import RigidBiped, PCrBiped, DecoupledBiped
 
 perturbation_suffix = '_perturb.npz'
 
-def sweep_thetas(hds, thetas=None, complete_trjs=False):
+def sweep_thetas(hds, thetas=None, complete_trjs=False, dt=1e-2):
   if thetas is None:
     thetas = np.arange(-.3, .31, .01)
   #thetas = np.arange(-.2, .21, .01)
@@ -23,8 +23,8 @@ def sweep_thetas(hds, thetas=None, complete_trjs=False):
   p = hds.nominal_parameters()
 
   rx = 1e-5
-  dt = 1e-3
-  dt = 1e-2
+  #dt = 1e-3
+  #dt = 1e-2
   t0 = 0
   tstop = 1.4
 
@@ -58,7 +58,14 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument("--no-saved", help="Regenerate data, regardless if it already exists",
                       action="store_true")
+  parser.add_argument("--fine", help="Run with a step size of dt=.001 as opposed to the default .01",
+                      action=store_true)
   args = parser.parse_args()
+
+  if args.fine:
+    dt=1e-3
+  else:
+    dt=1e-2
 
   for sys in [RigidBiped, DecoupledBiped]:
     filename = _data_folder / ('.' + str(sys)+perturbation_suffix)
@@ -70,9 +77,9 @@ if __name__ == '__main__':
     if sys is RigidBiped:
       # narrower range thetas
       thetas = np.arange(-.21, .22, .01)
-      thetas, Q, dQ, _ = sweep_thetas(sys, thetas=thetas)
+      thetas, Q, dQ, _ = sweep_thetas(sys, thetas=thetas, dt=dt)
     else:
-      thetas, Q, dQ, _ = sweep_thetas(sys)
+      thetas, Q, dQ, _ = sweep_thetas(sys, dt=dt)
     np.savez(filename, thetas=thetas, Q=Q, dQ=dQ)
 
   filename = _data_folder / ('.'+str(PCrBiped)+perturbation_suffix)
@@ -81,6 +88,6 @@ if __name__ == '__main__':
     print("Not regenerating the data")
 
   else:
-    thetas, Q, dQ, trjsList = sweep_thetas(PCrBiped, complete_trjs=True)
+    thetas, Q, dQ, trjsList = sweep_thetas(PCrBiped, complete_trjs=True, dt=dt)
     np.savez(filename, thetas=thetas, Q=Q, dQ=dQ)
     pickle.dump(trjsList, open(_data_folder / '.PCr_trjs.pkl', 'wb'))

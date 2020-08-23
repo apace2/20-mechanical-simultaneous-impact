@@ -11,13 +11,14 @@ from hybrid import HybridSystem
 body_color = 'k'
 left_color = 'b'
 right_color = 'r'
-default_body_style = {'linestyle':'-', 'lw':10, 'color':body_color}
 default_leg_style = {'linestyle':'-', 'lw':5, 'color':'grey'}
-default_spring_leg_style = {'lw':3, 'color':'grey'}
-default_foot_style = {'marker':'o', 'markersize':15}
-default_flywheel_style = {'marker':'o', 'markersize':25, 'color':'darkgrey', 'zorder':-1}
 default_gnd_style = {'facecolor':'brown', 'edgecolor':'black', 'hatch':'/', 'fill':True}
 
+default_flywheel_style = {'marker':'o', 'markersize':20, 'color':'darkgrey',
+                          'markeredgecolor':'dimgrey', 'mew':3}
+default_foot_style = {'marker':'o', 'markersize':10}
+default_spring_leg_style = {'lw':3, 'color':'grey'}
+default_body_style = {'linestyle':'-', 'lw':10, 'color':'black'}
 
 def Rot(theta):
   R = np.array([[np.cos(theta), -np.sin(theta)],
@@ -383,9 +384,11 @@ class PCrBiped(DecoupledBiped):
     #draw the flywheel
     if 'flywheel_style' in p:
       ax.plot(q[cls.ixb], q[cls.izb], **p['flywheel_style'])
+      ax.plot(q[cls.ixb], q[cls.izb], marker='.', color='black', markersize=5)
 
     else:
       ax.plot(q[cls.ixb], q[cls.izb], **default_flywheel_style)
+      ax.plot(q[cls.ixb], q[cls.izb], marker='.', color='black', markersize=5)
     return ax
 
   @classmethod
