@@ -349,5 +349,6 @@ draw_fig(ax, ind, tvals[1]-t_offset, p)
 filename = _fig_folder / figname
 #layout.save(str(filename)+'.svg')
 plt.savefig(str(filename) + '.png', dpi=600)
+plt.savefig(str(filename) + '.svg')
 plt.ion()
 plt.show()

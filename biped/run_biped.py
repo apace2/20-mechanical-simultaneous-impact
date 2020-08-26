@@ -59,7 +59,7 @@ if __name__ == '__main__':
   parser.add_argument("--no-saved", help="Regenerate data, regardless if it already exists",
                       action="store_true")
   parser.add_argument("--fine", help="Run with a step size of dt=.001 as opposed to the default .01",
-                      action=store_true)
+                      action="store_true")
   args = parser.parse_args()
 
   if args.fine:

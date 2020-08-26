@@ -10,6 +10,8 @@ from .DoublePendulum import DoublePendulum as DP
 from .DP_PCr_salt import Xi_n1, Xi_n2
 from . import _data_folder
 
+from pendulum import _fig_folder
+
 filename_forwardsim = _data_folder / '.dp-forwardsim.npz'
 filename_varsim = _data_folder / '.dp-varsim.npz'
 
@@ -128,16 +130,12 @@ if __name__ == '__main__':
   # plot simulated trajectories
   num_subplots = 2
   fig, ax = plt.subplots(num_subplots, 1, sharex=True)
-  ax[0].plot(perturbation, Q[:, 0])
-  ax[0].set_ylabel('q[0]')
-  ax[1].plot(perturbation, Q[:, 1])
-  ax[1].set_ylabel('q[1]')
 
   title_str = "Final state given perturbation of initial "
   if perturb_q0:
-    title_str += "q[0]"
+    title_str += r"$\theta_1$"
   else:
-    title_str += "q[1]"
+    title_str += r"$\theta_2$"
   ax[0].set_title(title_str)
 
   # plot first order approximation
@@ -146,11 +144,25 @@ if __name__ == '__main__':
   else:
     col_ind = 1
   #position
-  ax[0].plot(perturbation, Phi_01[0, col_ind]*perturbation + Q[zero_perturb_ind][0], '--')
-  ax[0].plot(perturbation, Phi_10[0, col_ind]*perturbation + Q[zero_perturb_ind][0], '--')
+  pos_pert = perturbation[zero_perturb_ind:]
+  neg_pert = perturbation[:zero_perturb_ind]
+  if perturb_q0:
+    nom_state = Q[zero_perturb_ind][0]
+  else:
+    nom_state = Q[zero_perturb_ind][1]
+  #plot simulation
+  ax[0].plot(perturbation+nom_state, Q[:, 0])
+  ax[0].set_ylabel(r'$\theta_1(T)$')
+  ax[1].plot(perturbation+nom_state, Q[:, 1])
+  ax[1].set_ylabel(r'$\theta_2(T)$')
 
-  ax[1].plot(perturbation, Phi_01[1, col_ind]*perturbation + Q[zero_perturb_ind][1], '--')
-  ax[1].plot(perturbation, Phi_10[1, col_ind]*perturbation + Q[zero_perturb_ind][1], '--')
+  ax[0].plot(pos_pert+nom_state, Phi_01[0, col_ind]*pos_pert + Q[zero_perturb_ind][0], '--')
+  ax[0].plot(neg_pert+nom_state, Phi_10[0, col_ind]*neg_pert + Q[zero_perturb_ind][0], '--')
+
+  ax[1].plot(pos_pert+nom_state, Phi_01[1, col_ind]*pos_pert + Q[zero_perturb_ind][1], '--')
+  ax[1].plot(neg_pert+nom_state, Phi_10[1, col_ind]*neg_pert + Q[zero_perturb_ind][1], '--')
+
+  ax[1].set_xlabel(r'$\theta_1(t=0)$')
   #velocity
   if num_subplots > 2:
     ax[2].plot(perturbation, DQ[:, 0])
@@ -164,16 +176,18 @@ if __name__ == '__main__':
     ax[3].plot(perturbation, Phi_10[3, col_ind]*perturbation + DQ[zero_perturb_ind][1], '--')
 
   for ax_iter in ax:
-    ax_iter.axvline(0, linestyle=':', color='.5')
+    ax_iter.axvline(nom_state, linestyle=':', color='.5')
   fig.tight_layout()
   plt.ion()
   plt.show()
 
-  fig, ax = plt.subplots(1)
-  ax.get_yaxis().set_visible(False)
-  ax.get_xaxis().set_visible(False)
+  fig.savefig(_fig_folder / 'dp_pcr_flow.png')
 
-  DP.draw_config(Q[0, :], p, ax=ax, draw_a1=False)
+  #fig, ax = plt.subplots(1)
+  #ax.get_yaxis().set_visible(False)
+  #ax.get_xaxis().set_visible(False)
+  #DP.draw_config(Q[0, :], p, ax=ax, draw_a1=False)
+
   #blp = {'color':'blue'}
   #p['beam_line_param'] = blp
   #DP.draw_config(Q[0, :], p, ax=ax)

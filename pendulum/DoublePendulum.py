@@ -3,11 +3,42 @@
 import copy
 import sympy
 from scipy import linalg as la
-import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
 import numpy as np
 
 import util
+
+from pendulum import _fig_folder
+
+default_gnd_style = {'facecolor':'brown', 'edgecolor':'black', 'hatch':'//', 'fill':True}
+default_a1_style = {'facecolor':'brown', 'ec':'black', 'hatch':'//'}
+
+def draw_ground(ax, p, z=0, depth=.1, xc=0.0, width=6):
+  '''
+  Draw a patch representing the ground
+
+  inputs:
+    ax - axis to draw on
+    p - parameter dict
+    z - z height
+    depth - how tall to draw the path
+    xc - right edge of patch
+    width - width of the patch
+  '''
+
+  if 'gnd_style' in p:
+    gnd_style = p['gnd_style']
+  else:
+    gnd_style = default_gnd_style
+
+  rect = patches.Rectangle((xc-width, z-depth), width, depth, **gnd_style)
+  ax.add_patch(rect)
+
+  wedge = patches.Wedge([0, 0], depth, theta1=-90, theta2=0, **gnd_style)
+  ax.add_patch(wedge)
+  return ax
 
 class DoublePendulum:
   DxF_lam = None
@@ -104,11 +135,9 @@ class DoublePendulum:
   #  unilateral constraint
   @classmethod
   def a(cls, t, k, q, dq, J, p):
-    b = p['m1']*p['l0']*p['l1']/2
-    d = p['m1']*p['l1']**2/3+p['m1']*(p['l1']/2)**2
     a = np.array([0., 0.])
     a[0] = q[0] + 0
-    a[1] = -q[1] + np.arccos(-d/b)
+    a[1] = -q[1] + p['a1']
     return a
 
   @classmethod
@@ -182,6 +211,11 @@ class DoublePendulum:
   def nominal_parameters(cls):
     p = {'m0':1, 'm1':1, 'l0':.5, 'l1':2/7}
     p['gamma'] = .3
+
+    #define a1 guard such that the guards are orthogonal
+    b = p['m1']*p['l0']*p['l1']/2
+    d = p['m1']*p['l1']**2/3+p['m1']*(p['l1']/2)**2
+    p['a1'] = np.arccos(-d/b)
     return p
 
   @classmethod
@@ -218,33 +252,29 @@ class DoublePendulum:
     P1 = p['l0']*np.exp(1.j*q[0])
     P2 = p['l1']*np.exp(1.j*(q[0]+q[1]))+P1
 
-    if draw_a1:
-      b = p['m1']*p['l0']*p['l1']/2
-      d = p['m1']*p['l1']**2/3+p['m1']*(p['l1']/2)**2
-      theta = np.arccos(-d/b)
-      PC = R(q[0])@np.array([np.cos(theta)*p['l1']/2, np.sin(theta)*p['l1']/2]) + P1
-
-      lp = p.get('constraint_line_param', default_constraint_lp)
-      linec = mlines.Line2D([P1[0], PC[0]], [P1[1], PC[1]], **lp)
-      ax.add_line(linec)
-
     if color is None:
       lc = 'blue'
     else:
       lc = color
     mec = 'orange'  #marker edge color
+    segment_params = {'linestyle':'-', 'lw':10, 'color':lc}
+    marker_params = {'marker':'o', 'markersize':15, 'mec':mec, 'mew':5, 'mfc':lc}
     plot_params = {'marker':'o', 'linestyle':'-', 'markersize':15,
                    'lw':10, 'mec':mec, 'mew':5, 'mfc':lc, 'color':lc}
     seg1 = np.array([O, P1])
     seg2 = np.array([P1, P2])
+    #ax.plot(seg2.real, seg2.imag, **plot_params)
+    #ax.plot(seg1.real, seg1.imag, **segment_params)
+    ax.plot(seg2.real, seg2.imag, **segment_params)
     ax.plot(seg1.real, seg1.imag, **plot_params)
-    ax.plot(seg2.real, seg2.imag, **plot_params)
+    #ax.plot(seg1[0].real, seg1[0].imag, **marker_params)
+    #ax.plot(seg1[1].real, seg1[1].imag, **marker_params, zorder=10)
 
-    #lp = p.get('beam_line_param', default_beam_lp)
-    #line0 = mlines.Line2D([O[0], P1[0]], [O[1], P1[1]], **lp)
-    #line1 = mlines.Line2D([P1[0], P2[0]], [P1[1], P2[1]], **lp)
-    #ax.add_line(line0)
-    #ax.add_line(line1)
+    draw_ground(ax, p)
+    wedge = patches.Wedge([P1.real, P1.imag], .15, np.rad2deg(q[0]+p['a1']), -180+np.rad2deg(q[0]),
+                          **default_a1_style)
+    if draw_a1:
+      ax.add_patch(wedge)
 
     return ax
 
@@ -260,31 +290,32 @@ if __name__ == '__main__':
   def set_lim(ax):
     ax.axis('equal')
     ax.set(xlim=(-.2,.7), ylim=(-.1,.7))
+    ax.axis('off')
 
   plt.ion()
 
   fig, ax = plt.subplots(1)
-  DoublePendulum.draw_config(rho, p, ax=ax, draw_a1=False, color='black')
+  DoublePendulum.draw_config(rho, p, ax=ax, draw_a1=True, color='black')
   set_lim(ax)
   ax.set_title('Configuration at simultaneous impact')
-  fig.savefig('sim_impact.png')
+  fig.savefig(_fig_folder / 'dp_sim_impact.png')
 
   fig, ax = plt.subplots(1)
-  DoublePendulum.draw_config(q0, p, ax=ax, draw_a1=False, color='black')
+  DoublePendulum.draw_config(q0, p, ax=ax, draw_a1=True, color='black')
   set_lim(ax)
+  plt.savefig(_fig_folder / 'nominal.svg')
   ax.set_title('Configuration at t=0')
-  plt.savefig('q0.png')
+  plt.savefig(_fig_folder / 'dp_q0_nominal.png')
 
   #fig, ax = plt.subplots(1)
   q0plus = q0 + np.array([1, 0]) * .05
   DoublePendulum.draw_config(q0plus, p, ax=ax, draw_a1=False)
   set_lim(ax)
-  plt.savefig('q0plus.png')
-
+  plt.savefig(_fig_folder / 'dp_q0plus.png')
 
   fig, ax = plt.subplots(1)
   q0minus = q0 + np.array([1, 0]) * -.05
   DoublePendulum.draw_config(q0, p, ax=ax, draw_a1=False, color='black')
   DoublePendulum.draw_config(q0minus, p, ax=ax, draw_a1=False, color='red')
   set_lim(ax)
-  plt.savefig('q0minus.png')
+  plt.savefig(_fig_folder / 'dp_q0minus.png')
