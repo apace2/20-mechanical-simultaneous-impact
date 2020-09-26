@@ -11,8 +11,10 @@ import util
 
 from . import _data_folder
 from .Biped import RigidBiped, PCrBiped, DecoupledBiped
+from .salt_calc import salt_biped
 
 perturbation_suffix = '_perturb.npz'
+varsim_suffix = '_var.npz'
 
 def sweep_thetas(hds, thetas=None, complete_trjs=False, dt=1e-2):
   if thetas is None:
@@ -48,8 +50,26 @@ def sweep_thetas(hds, thetas=None, complete_trjs=False, dt=1e-2):
 
   return thetas, Q, dQ, trjsList
 
+def varsim(hds):
+  _, _, _, trjsList = sweep_thetas(hds, np.asarray([0.]), True, dt=1e-3)
+  trjs_nom = trjsList[0]
+  p = hds.nominal_parameters()
+  X1 = util.variational_soln(trjs_nom[0], p, hds.DxF)
 
-if __name__ == '__main__':
+  X2 = util.variational_soln(trjs_nom[-1], p, hds.DxF)
+
+  rho = trjs_nom[0]['q'][-1]
+  drho = trjs_nom[0]['dq'][-1]
+
+  Xi12, Xi21 = salt_biped(rho, drho, hds, p)
+
+  Phi12 = X2 @ Xi12 @ X1
+  Phi21 = X2 @ Xi21 @ X1
+
+  return Phi12, Phi21
+
+
+def main():
   '''
   To call from ipython (with the no-saved argument):
     %run -m biped.run_biped -- --no-saved
@@ -63,10 +83,11 @@ if __name__ == '__main__':
   args = parser.parse_args()
 
   if args.fine:
-    dt=1e-3
+    dt = 1e-3
   else:
-    dt=1e-2
+    dt = 1e-2
 
+  # calculate perturbations
   for sys in [RigidBiped, DecoupledBiped]:
     filename = _data_folder / ('.' + str(sys)+perturbation_suffix)
     if os.path.exists(filename) and not args.no_saved:
@@ -91,3 +112,19 @@ if __name__ == '__main__':
     thetas, Q, dQ, trjsList = sweep_thetas(PCrBiped, complete_trjs=True, dt=dt)
     np.savez(filename, thetas=thetas, Q=Q, dQ=dQ)
     pickle.dump(trjsList, open(_data_folder / '.PCr_trjs.pkl', 'wb'))
+
+  #calculate variational solutions
+  print('Generating variational equation solutions')
+  for sys in [PCrBiped, DecoupledBiped]:
+    filename = _data_folder / ('.' + str(sys)+varsim_suffix)
+    if os.path.exists(filename) and not args.no_saved:
+      print("Data already exists in file :", filename)
+      print("Not regenerating the data")
+      continue
+
+    Phi12, Phi21 = varsim(sys)
+    np.savez(filename, Phi12=Phi12, Phi21=Phi21)
+
+
+if __name__ == '__main__':
+  main()

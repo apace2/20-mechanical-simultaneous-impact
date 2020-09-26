@@ -2,6 +2,7 @@
 import copy
 from scipy import linalg as la
 import numpy as np
+import sympy as sym
 
 class fancytype(type):
   # from https://stackoverflow.com/questions/8144026/how-to-define-a-str-method-for-a-class
@@ -117,6 +118,12 @@ class HybridSystem(metaclass=fancytype):
       ddq = Minv@f
     else:
       lamb = cls.lamb(t, k, q, dq, J, p)
+      if 'symbolic' in p and p['symbolic']:
+        lamb = sym.Matrix(lamb)
+        f = sym.Matrix(f)
+        ddq = Minv@(f + Da.T@lamb)
+        return ddq
+
       ddq = Minv@(f + Da.T@lamb)
     assert ddq.shape == (cls.N_States,)
     return ddq

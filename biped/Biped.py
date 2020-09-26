@@ -1,4 +1,5 @@
 # vim: expandtab tabstop=2 shiftwidth=2
+from collections import defaultdict
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
@@ -50,9 +51,31 @@ def draw_ground(ax, p, z=0, depth=.1, xc=0, width=1):
 
 class Biped(HybridSystem):
   N_States = 7
+  DxF_lam = defaultdict(lambda: None)  #need multipled, one for each J
 
   # state indices q = [xb xl xr zb zl zr theta]
   ixb, ixl, ixr, izb, izl, izr, ith = np.arange(N_States)
+
+  @classmethod
+  def DxF(cls, t, k, q, dq, J, p):
+    if cls.DxF_lam[tuple(J)] is None:
+      p = p.copy()
+      p['symbolic'] = True
+      #q_sym = sym.symbols('q[:'+str(cls.N_States)+']')
+      #dq_sym = sym.symbols('dq[:'+str(cls.N_States)+']')
+      q_sym = sym.symarray('q', cls.N_States, real=True)
+      dq_sym = sym.symarray('dq', cls.N_States, real=True)
+
+      # k, t, J don't change the calculations
+      ddq_sym = sym.Matrix(cls.ddq(0, 0, q_sym, dq_sym, J, p))
+      vec_field = sym.Matrix.vstack(sym.Matrix(dq_sym), ddq_sym)
+
+      DxF_sym = vec_field.jacobian(sym.Matrix([*q_sym, *dq_sym]))
+      DxF_lam = sym.lambdify([q_sym, dq_sym], DxF_sym)
+
+      cls.DxF_lam[tuple(J)] = DxF_lam
+
+    return np.asarray(cls.DxF_lam[tuple(J)](q, dq)).astype(np.float64)
 
   @classmethod
   def ic(cls, p, theta=0, height=1.):
@@ -260,7 +283,6 @@ class RigidBiped(Biped):
 
 class DecoupledBiped(Biped):
   Fs = None
-  DxF = None
 
   @classmethod
   def nominal_parameters(cls):
@@ -270,9 +292,10 @@ class DecoupledBiped(Biped):
     return p
 
   @classmethod
-  def define_spring_force(cls, p):
+  def define_spring_force(cls, p, qsym=None):
     # Assumes once parameter is set, the values never change
-    qsym = sym.symarray('q', cls.N_States, real=True)
+    if qsym is None:
+      qsym = sym.symarray('q', cls.N_States, real=True)
     theta = qsym[cls.ith]
     xb, xl, xr, zb, zl, zr = qsym[[cls.ixb, cls.ixl, cls.ixr,
                                    cls.izb, cls.izl, cls.izr]]
@@ -299,10 +322,21 @@ class DecoupledBiped(Biped):
     # potential force = dL/dx = -(partial/partial q) P
     Fs = -P.diff(qsym)
 
+    if 'symbolic' in p and p['symbolic']:
+      return Fs
+
     cls.Fs = sym.lambdify([qsym], Fs)
 
   @classmethod
   def f(cls, t, k, q, dq, J, p):
+    if 'symbolic' in p and p['symbolic']:
+      Fs = cls.define_spring_force(p, q)
+      g = np.zeros(cls.N_States)
+      g[[cls.izb, cls.izr, cls.izl]] = -p['g']
+      fg = cls.M(t, k, q, J, p)@g
+
+      return sym.Array(Fs) + sym.Array(fg)
+
     if cls.Fs is None:
       cls.define_spring_force(p)
 
@@ -403,7 +437,13 @@ class PCrBiped(DecoupledBiped):
     fp = super(PCrBiped, cls).f(t, k, q, dq, J, p)
 
     f_fly = np.zeros(len(q))
+    if 'symbolic' in p and p['symbolic']:
+      f_fly = sym.zeros(len(q), 1)
+
     f_fly[cls.ith] = p['b']*(dq[cls.izl] - dq[cls.izr])**2
+
+    if 'symbolic' in p and p['symbolic']:
+      f_fly = sym.Array(f_fly, len(q),)
     f = fp + f_fly
     return f
 

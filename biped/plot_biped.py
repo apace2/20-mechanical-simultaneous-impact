@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as font_manager
 
 from . import _data_folder, _fig_folder
-from .run_biped import perturbation_suffix
+from .run_biped import perturbation_suffix, varsim_suffix
 from .Biped import Biped, RigidBiped, PCrBiped, DecoupledBiped
 
 font = {'family':'sans-serif', 'size':13}
@@ -25,6 +25,7 @@ def draw_figure(showfig=True, savefig=True):
     fig = plt.figure(figsize=(6, 4))
     gs = fig.add_gridspec(nrows=2, ncols=3, left=.18, bottom=.15, top=1, right=.99)
 
+    # plot the theta / theta dot plots
     ax1 = fig.add_subplot(gs[1, 0])
     th = data_discon['thetas']
     ax1.plot(data_discon['thetas'][th < 0], data_discon['dQ'][th < 0, Biped.ith], color=neg_color)
@@ -41,12 +42,32 @@ def draw_figure(showfig=True, savefig=True):
     plt.setp(ax.get_yticklabels(), visible=False)
     ax.set_xlabel(r'$\theta(t=0)$')
 
+    perturb_dir = np.zeros(14)
+    # perturbing by tilting entire mechanism
+    # calculate using finite diff
+    p = Biped.nominal_parameters()
+    q0_finitediff, _, _ = Biped.ic(p, theta=0)
+    delta_theta = .001
+    qpert_finitediff, _, _ = Biped.ic(p, theta=delta_theta)
+    perturb_dir[:Biped.N_States] = (qpert_finitediff-q0_finitediff)/delta_theta
+
+    slope12 = (data_var_pcr['Phi12']@perturb_dir)[Biped.N_States+Biped.ith]
+    slope21 = (data_var_pcr['Phi21']@perturb_dir)[Biped.N_States+Biped.ith]
+    ax.plot(data_pcr['thetas'], data_pcr['thetas']*slope12)
+    ax.plot(data_pcr['thetas'], data_pcr['thetas']*slope21)
+
     ax = fig.add_subplot(gs[1, 2], sharey=ax1, sharex=ax1)
     th = data_c1['thetas']
     ax.plot(data_c1['thetas'][th <= 0], data_c1['dQ'][th <= 0, Biped.ith], color=neg_color)
     ax.plot(data_c1['thetas'][th >= 0], data_c1['dQ'][th >= 0, Biped.ith], color=pos_color)
     ax.plot(data_c1['thetas'][th == 0], data_c1['dQ'][th == 0, Biped.ith], '.', color=sim_color)
     plt.setp(ax.get_yticklabels(), visible=False)
+
+    slope = (data_var_c1['Phi12']@perturb_dir)[Biped.N_States+Biped.ith]
+    ax.plot(data_c1['thetas'], data_c1['thetas']*slope)
+
+
+
 
     ###################
     # draw the diagrams
@@ -92,6 +113,12 @@ if __name__ == '__main__':
 
         filename = _data_folder / ('.DecoupledBiped'+perturbation_suffix)
         data_c1 = np.load(filename)
+
+        filename = _data_folder / ('.PCrBiped'+varsim_suffix)
+        data_var_pcr = np.load(filename)
+
+        filename = _data_folder / ('.DecoupledBiped'+varsim_suffix)
+        data_var_c1 = np.load(filename)
 
     except FileNotFoundError:
         print("Not all data files exist.")
