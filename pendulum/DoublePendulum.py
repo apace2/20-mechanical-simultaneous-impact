@@ -279,7 +279,7 @@ class DoublePendulum:
     return ax
 
 
-if __name__ == '__main__':
+def generate_DP_impages():
   plt.ion()
   p = DoublePendulum.nominal_parameters()
   rho = DoublePendulum.simultaneous_impact_configuration(p)
@@ -319,3 +319,23 @@ if __name__ == '__main__':
   DoublePendulum.draw_config(q0minus, p, ax=ax, draw_a1=False, color='red')
   set_lim(ax)
   plt.savefig(_fig_folder / 'dp_q0minus.png')
+
+
+if __name__ == '__main__':
+  plt.ion()
+  p = DoublePendulum.nominal_parameters()
+
+  t = .7
+  q0, dq0 = DoublePendulum.x0(t, p)
+  def set_lim(ax):
+    ax.axis('equal')
+    ax.set(xlim=(-.2,.7), ylim=(-.1,.7))
+    ax.axis('off')
+
+  plt.ion()
+
+  fig, ax = plt.subplots(1)
+  DoublePendulum.draw_config(q0, p, ax=ax, draw_a1=True, color='black')
+  set_lim(ax)
+  plt.savefig(_fig_folder / 'nominal.svg')
+  ax.set_title('Configuration at t=0')

@@ -114,6 +114,7 @@ def main():
     pickle.dump(trjsList, open(_data_folder / '.PCr_trjs.pkl', 'wb'))
 
   #calculate variational solutions
+  print('\n\n')
   print('Generating variational equation solutions')
   for sys in [PCrBiped, DecoupledBiped]:
     filename = _data_folder / ('.' + str(sys)+varsim_suffix)
