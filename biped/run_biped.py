@@ -97,6 +97,8 @@ def main():
 
     if sys is RigidBiped:
       # narrower range thetas
+      # With the simulation time 1.4s, when theta is outside the
+      # following range, the rigid biped only undergoes 1 impact
       thetas = np.arange(-.21, .22, .01)
       thetas, Q, dQ, _ = sweep_thetas(sys, thetas=thetas, dt=dt)
     else:
