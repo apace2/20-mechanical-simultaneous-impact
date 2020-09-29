@@ -3,7 +3,9 @@
 import argparse
 import os.path
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 import util
 from .DoublePendulum import DoublePendulum as DP
@@ -14,6 +16,20 @@ from pendulum import _fig_folder
 
 filename_forwardsim = _data_folder / '.dp-forwardsim.npz'
 filename_varsim = _data_folder / '.dp-varsim.npz'
+
+font = {'family':'sans-serif', 'size':10}
+mpl.rc('font', **font)
+
+slope_line_params = {'linestyle':'--', 'dashes':(1, 1), 'linewidth':5}
+line_params = {'lw':5, 'ms':12}
+ax_line_params = {'lw':3, 'color':'k'}
+
+pos_color = 'b'
+pos_slope_color = (.5, .5, 1.)
+neg_color = 'r'
+neg_slope_color = (1, .5, .5)
+
+sim_color = 'purple'
 
 p = DP.nominal_parameters()
 p['debug'] = True
@@ -43,8 +59,8 @@ def forward_sim_perturbation(perturb_q0):
 
   return perturbation, Q, DQ (the final state of the system)
   '''
-  pert_step = .05
-  perturbation = np.arange(-.3, .3+pert_step, pert_step)
+  pert_step = .01
+  perturbation = np.arange(-.35, .3+pert_step, pert_step)
   # If a discontinuity appears in plot, check to make sure
   # all trajectories under both impacts
 
@@ -52,7 +68,7 @@ def forward_sim_perturbation(perturb_q0):
   Q = []
 
   # forward simulate perturbations
-  for perturb in perturbation:
+  for perturb in tqdm(perturbation, desc="Simulating double pendulum:"):
     if perturb_q0:
       q0_tmp = q0_forward + np.array([perturb, 0])
     else:
@@ -87,6 +103,88 @@ def varsim():
   return Phi_10, Phi_01
 
 
+def plot(perturbation, Q, DQ, Phi_10, Phi_01):
+
+  zero_perturb_ind = np.isclose(perturbation, np.zeros_like(perturbation)).nonzero()[0][0]
+
+  # plot simulated trajectories
+  num_subplots = 1
+  fig, ax = plt.subplots(num_subplots, 1, sharex=True, figsize=(3, 3))
+  if num_subplots == 1:
+    ax = [ax]
+
+  title_str = "Final state given perturbation of initial "
+  if perturb_q0:
+    title_str += r"$\theta_1$"
+  else:
+    title_str += r"$\theta_2$"
+  # title will come from subcaption labels
+  #ax[0].set_title(title_str)
+
+  # plot first order approximation
+  if perturb_q0:
+    col_ind = 0
+  else:
+    col_ind = 1
+  #position
+  pos_pert = perturbation[zero_perturb_ind:]
+  neg_pert = perturbation[:zero_perturb_ind+1]
+  if perturb_q0:
+    nom_state = Q[zero_perturb_ind][0]
+  else:
+    nom_state = Q[zero_perturb_ind][1]
+  #plot simulation
+  #ax[0].plot(pos_pert+nom_state, Phi_01[0, col_ind]*pos_pert + Q[zero_perturb_ind][0],
+  #           color=pos_slope_color, **slope_line_params)
+  #ax[0].plot(pos_pert+nom_state, Q[zero_perturb_ind:, 0],
+  #           color=pos_color, **line_params)
+  #ax[0].plot(neg_pert+nom_state, Phi_10[0, col_ind]*neg_pert + Q[zero_perturb_ind][0],
+  #           color=neg_slope_color, **slope_line_params)
+  #ax[0].plot(neg_pert+nom_state, Q[:zero_perturb_ind+1, 0],
+  #           color=neg_color, **line_params)
+  #ax[0].plot(nom_state, Q[zero_perturb_ind, 0], '.', color=sim_color)
+  #ax[0].set_ylabel(r'$\theta_1(T)$')
+
+  ax[0].plot(perturbation+nom_state, Q[:, 1])
+  ax[0].set_ylabel(r'$\theta_2(t=T)$')
+  ax[0].plot(pos_pert+nom_state, Phi_01[1, col_ind]*pos_pert + Q[zero_perturb_ind][1],
+             color=pos_slope_color, **slope_line_params)
+  ax[0].plot(pos_pert+nom_state, Q[zero_perturb_ind:, 1],
+             color=pos_color, **line_params)
+  ax[0].plot(neg_pert+nom_state, Phi_10[1, col_ind]*neg_pert + Q[zero_perturb_ind][1],
+             color=neg_slope_color, **slope_line_params)
+  ax[0].plot(neg_pert+nom_state, Q[:zero_perturb_ind+1, 1],
+             color=neg_color, **line_params)
+  ax[0].plot(nom_state, Q[zero_perturb_ind, 1], '.', color=sim_color)
+
+  ax[0].set_xlabel(r'$\theta_1(t=0)$')
+  ax[0].set_xlim((-.1, .5))
+  #velocity
+  if num_subplots > 2:
+    ax[2].plot(perturbation, DQ[:, 0])
+    ax[2].set_ylabel('dq[0]')
+    ax[3].plot(perturbation, DQ[:, 1])
+    ax[3].set_ylabel('dq[1]')
+    ax[2].plot(perturbation, Phi_01[2, col_ind]*perturbation + DQ[zero_perturb_ind][0], '--')
+    ax[2].plot(perturbation, Phi_10[2, col_ind]*perturbation + DQ[zero_perturb_ind][0], '--')
+
+    ax[3].plot(perturbation, Phi_01[3, col_ind]*perturbation + DQ[zero_perturb_ind][1], '--')
+    ax[3].plot(perturbation, Phi_10[3, col_ind]*perturbation + DQ[zero_perturb_ind][1], '--')
+
+
+  ax[0].axhline(Q[zero_perturb_ind, 1], zorder=-10, **ax_line_params)
+  ax[0].yaxis.set_ticks_position('right')
+  ax[0].yaxis.set_label_position('right')
+  #for ax_iter in ax:
+    #ax_iter.axvline(nom_state, linestyle=':', color='.5')
+  fig.tight_layout()
+  plt.ion()
+  plt.show()
+
+  fig.savefig(_fig_folder / 'dp_pcr_flow.png')
+
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument("--no-saved", help="Don't use saved data, if such data exists",
@@ -112,8 +210,6 @@ if __name__ == '__main__':
     perturbation, Q, DQ = forward_sim_perturbation(perturb_q0)
     np.savez(filename_forwardsim, perturbation=perturbation, Q=Q, DQ=DQ)
 
-  zero_perturb_ind = np.isclose(perturbation, np.zeros_like(perturbation)).nonzero()[0][0]
-
   # calcuation variational solution
   print('')
   print("Calculate variational solution")
@@ -127,72 +223,4 @@ if __name__ == '__main__':
     Phi_10, Phi_01 = varsim()
     np.savez(filename_varsim, Phi_01=Phi_01, Phi_10=Phi_10)
 
-  # plot simulated trajectories
-  num_subplots = 2
-  fig, ax = plt.subplots(num_subplots, 1, sharex=True)
-
-  title_str = "Final state given perturbation of initial "
-  if perturb_q0:
-    title_str += r"$\theta_1$"
-  else:
-    title_str += r"$\theta_2$"
-  ax[0].set_title(title_str)
-
-  # plot first order approximation
-  if perturb_q0:
-    col_ind = 0
-  else:
-    col_ind = 1
-  #position
-  pos_pert = perturbation[zero_perturb_ind:]
-  neg_pert = perturbation[:zero_perturb_ind]
-  if perturb_q0:
-    nom_state = Q[zero_perturb_ind][0]
-  else:
-    nom_state = Q[zero_perturb_ind][1]
-  #plot simulation
-  ax[0].plot(perturbation+nom_state, Q[:, 0])
-  ax[0].set_ylabel(r'$\theta_1(T)$')
-  ax[1].plot(perturbation+nom_state, Q[:, 1])
-  ax[1].set_ylabel(r'$\theta_2(T)$')
-
-  ax[0].plot(pos_pert+nom_state, Phi_01[0, col_ind]*pos_pert + Q[zero_perturb_ind][0], '--')
-  ax[0].plot(neg_pert+nom_state, Phi_10[0, col_ind]*neg_pert + Q[zero_perturb_ind][0], '--')
-
-  ax[1].plot(pos_pert+nom_state, Phi_01[1, col_ind]*pos_pert + Q[zero_perturb_ind][1], '--')
-  ax[1].plot(neg_pert+nom_state, Phi_10[1, col_ind]*neg_pert + Q[zero_perturb_ind][1], '--')
-
-  ax[1].set_xlabel(r'$\theta_1(t=0)$')
-  #velocity
-  if num_subplots > 2:
-    ax[2].plot(perturbation, DQ[:, 0])
-    ax[2].set_ylabel('dq[0]')
-    ax[3].plot(perturbation, DQ[:, 1])
-    ax[3].set_ylabel('dq[1]')
-    ax[2].plot(perturbation, Phi_01[2, col_ind]*perturbation + DQ[zero_perturb_ind][0], '--')
-    ax[2].plot(perturbation, Phi_10[2, col_ind]*perturbation + DQ[zero_perturb_ind][0], '--')
-
-    ax[3].plot(perturbation, Phi_01[3, col_ind]*perturbation + DQ[zero_perturb_ind][1], '--')
-    ax[3].plot(perturbation, Phi_10[3, col_ind]*perturbation + DQ[zero_perturb_ind][1], '--')
-
-  for ax_iter in ax:
-    ax_iter.axvline(nom_state, linestyle=':', color='.5')
-  fig.tight_layout()
-  plt.ion()
-  plt.show()
-
-  fig.savefig(_fig_folder / 'dp_pcr_flow.png')
-
-  #fig, ax = plt.subplots(1)
-  #ax.get_yaxis().set_visible(False)
-  #ax.get_xaxis().set_visible(False)
-  #DP.draw_config(Q[0, :], p, ax=ax, draw_a1=False)
-
-  #blp = {'color':'blue'}
-  #p['beam_line_param'] = blp
-  #DP.draw_config(Q[0, :], p, ax=ax)
-  #DP.draw_config(Q[-1, :], p, ax=ax)
-  ##blp = {'color':0}
-  #blp['color'] = '0'
-  #zero_perturb_ind = int(len(perturbation)/2)
-  #DP.draw_config(Q[zero_perturb_ind, :], p, ax=ax)
+  plot(perturbation, Q, DQ, Phi_10, Phi_01)

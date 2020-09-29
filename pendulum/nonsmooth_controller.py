@@ -1,8 +1,9 @@
 # vim: expandtab tabstop=2 shiftwidth=2
 import argparse
+import os
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 
 from scipy import optimize as opt
 from tqdm import tqdm
@@ -13,6 +14,21 @@ from .DoublePendulum import DoublePendulum as DP
 from . import _data_folder, _fig_folder
 
 filename = _data_folder / '.nonsmooth_control.npz'
+
+font = {'family':'sans-serif', 'size':13}
+mpl.rc('font', **font)
+mpl.rcParams['lines.linewidth'] = 5
+mpl.rcParams['lines.markersize'] = 20
+
+slope_line_params = {'linestyle':'--', 'dashes':(1, 1)}
+line_params = {'lw':8, 'ms':12}
+pos_color = 'b'
+pos_slope_color = (.5, .5, 1.)
+neg_color = 'r'
+neg_slope_color = (1, .5, .5)
+
+ax_line_params = {'lw':4, 'color':'k'}
+sim_color = 'purple'
 
 def generate_nonsmooth_controller():
   # nominal trajectory and desired state without any applied torque and undergoes
@@ -110,7 +126,7 @@ def generate_nonsmooth_controller():
 def plot_nonsmooth_controller():
   plt.ion()
   data = np.load(filename)
-  pert_dir = data['perturbation_dir']
+  #pert_dir = data['perturbation_dir']
   pert_mag = data['perturbation']
   tau = data['tau']
   q = data['QFinal']
@@ -118,7 +134,7 @@ def plot_nonsmooth_controller():
   q0 = data['q0']
 
   #limit data to range [-.1, .1] of pert_mag
-  ind = np.where(np.logical_and(pert_mag>=-.1, pert_mag<=.1))[0]
+  ind = np.where(np.logical_and(pert_mag >= -.1, pert_mag <= .1))[0]
 
   fig = plt.figure()
   ax0 = plt.subplot(2, 1, 1)
@@ -126,18 +142,20 @@ def plot_nonsmooth_controller():
 
   ax = [ax0, ax1]
 
-  ax[0].plot(pert_mag[ind]+q0[0], tau[ind])
-  ax[0].plot(pert_mag[ind]+q0[0], np.zeros_like(tau[ind]))
-  ax[0].set_ylabel(r'Applied constant torque' '\n' r'$\tau$')
+  ax[0].plot(pert_mag[ind]+q0[0], np.zeros_like(tau[ind]), **line_params)
+  ax[0].plot(pert_mag[ind]+q0[0], tau[ind], **line_params)
+  ax[0].set_ylabel(r'Applied Torque' '\n' r'$\tau$')
 
-  ax[1].plot(pert_mag[ind]+q0[0], q[ind, 1])
-  ax[1].plot(pert_mag[ind]+q0[0], q_nc[ind, 1])
-  ax[1].set_ylabel(r'Final Elbow Rotation' '\n' r'$\theta_2(t_f)$')
-  ax[1].legend(['Nonsmooth controller', 'No control'])
+  ax[1].plot(pert_mag[ind]+q0[0], q_nc[ind, 1], label="Uncontrolled")
+  ax[1].plot(pert_mag[ind]+q0[0], q[ind, 1], label="Controled")
+  ax[1].set_ylabel(r'Elbow Rotation' '\n' r'$\theta_2(t=T)$')
+  ax[1].legend()
   ax[1].set_xlabel(r'Initial Shoulder Rotation' '\n' r'$\theta_1(0)$')
 
-  ax[0].set_title('Underactuated Double Pendulum')
+  #ax[0].set_title('Underactuated Double Pendulum')
   plt.tight_layout()
+
+  ax[0].set_xlim((.6, .75))
 
   plt.savefig(_fig_folder/'nonsmooth_controller.png')
 

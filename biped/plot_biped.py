@@ -8,7 +8,7 @@ from . import _data_folder, _fig_folder
 from .run_biped import perturbation_suffix, varsim_suffix
 from .Biped import Biped, RigidBiped, PCrBiped, DecoupledBiped
 
-font = {'family':'sans-serif', 'size':13}
+font = {'family':'sans-serif', 'size':10}
 mpl.rc('font', **font)
 mpl.rcParams['lines.linewidth'] = 5
 mpl.rcParams['lines.markersize'] = 20
