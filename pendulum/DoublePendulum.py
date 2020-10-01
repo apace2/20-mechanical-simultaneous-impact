@@ -12,8 +12,12 @@ import util
 
 from pendulum import _fig_folder
 
-default_gnd_style = {'facecolor':'brown', 'edgecolor':'black', 'hatch':'//', 'fill':True}
-default_a1_style = {'facecolor':'brown', 'ec':'black', 'hatch':'//'}
+default_gnd_style = {'facecolor':'peachpuff', 'edgecolor':'black', 'hatch':'//', 'fill':True}
+default_a2_style = {'facecolor':'peachpuff', 'edgecolor':'black', 'hatch':'//'}
+a1_color = 'red'
+a2_color = 'blue'
+gnd_outline = {'facecolor':'none', 'edgecolor':a1_color, 'linewidth':5}
+a2_outline = {'facecolor':'none', 'edgecolor':a2_color, 'linewidth':5}
 
 def draw_ground(ax, p, z=0, depth=.1, xc=0.0, width=6):
   '''
@@ -36,8 +40,12 @@ def draw_ground(ax, p, z=0, depth=.1, xc=0.0, width=6):
   rect = patches.Rectangle((xc-width, z-depth), width, depth, **gnd_style)
   ax.add_patch(rect)
 
-  wedge = patches.Wedge([0, 0], depth, theta1=-90, theta2=0, **gnd_style)
+  wedge = patches.Wedge([0, 0], depth, theta1=-90, theta2=0, zorder=-81, **gnd_style)
   ax.add_patch(wedge)
+
+  wedge = patches.Wedge([0, 0], depth, theta1=-90, theta2=0, zorder=-80, **gnd_outline)
+  ax.add_patch(wedge)
+
   return ax
 
 class DoublePendulum:
@@ -272,9 +280,14 @@ class DoublePendulum:
 
     draw_ground(ax, p)
     wedge = patches.Wedge([P1.real, P1.imag], .15, np.rad2deg(q[0]+p['a1']), -180+np.rad2deg(q[0]),
-                          **default_a1_style)
+                          **default_a2_style, zorder=-100)
     if draw_a1:
       ax.add_patch(wedge)
+
+    # add color outline to indicate guard
+    wedge = patches.Wedge([P1.real, P1.imag], .15, np.rad2deg(q[0]+p['a1']), -180+np.rad2deg(q[0]),
+        zorder=-99, **a2_outline)
+    ax.add_patch(wedge)
 
     return ax
 

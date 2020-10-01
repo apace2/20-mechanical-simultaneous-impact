@@ -22,10 +22,16 @@ mpl.rcParams['lines.markersize'] = 20
 
 slope_line_params = {'linestyle':'--', 'dashes':(1, 1)}
 line_params = {'lw':8, 'ms':12}
+dot_params = {'ms':25}
 pos_color = 'b'
 pos_slope_color = (.5, .5, 1.)
 neg_color = 'r'
 neg_slope_color = (1, .5, .5)
+
+# color depending on which constraint hit first
+color_a1 = 'r'  #pert_mag < 0
+color_a2 = 'b'  #pert_mag > 0
+color_sim = 'purple'
 
 ax_line_params = {'lw':4, 'color':'k'}
 sim_color = 'purple'
@@ -123,7 +129,7 @@ def generate_nonsmooth_controller():
            QFinal=Q, DQFinal=DQ, Q_NoControlFinal=Q_NoControl, DQFinal_NoControl=DQ_NoControl,
            q0=q0, dq0=dq0)
 
-def plot_nonsmooth_controller():
+def generate_plot():
   plt.ion()
   data = np.load(filename)
   #pert_dir = data['perturbation_dir']
@@ -133,29 +139,44 @@ def plot_nonsmooth_controller():
   q_nc = data['Q_NoControlFinal']
   q0 = data['q0']
 
-  #limit data to range [-.1, .1] of pert_mag
-  ind = np.where(np.logical_and(pert_mag >= -.1, pert_mag <= .1))[0]
+  fig, ax = plt.subplots(2, 2, sharex='all', sharey='row',
+      gridspec_kw={'hspace':.1, 'left':.2, 'right':.95, 'bottom':.2})
 
-  fig = plt.figure()
-  ax0 = plt.subplot(2, 1, 1)
-  ax1 = plt.subplot(2, 1, 2, sharex=ax0)
 
-  ax = [ax0, ax1]
+  #set the small pertubation due to floating point to 0
+  zero_perturb_ind = np.where(np.isclose(pert_mag, 0))[0]
+  pert_mag[zero_perturb_ind] = 0
+  ind_a1 = np.where(pert_mag <= 0.)[0]
+  ind_a2 = np.where(pert_mag >= 0.)[0]
 
-  ax[0].plot(pert_mag[ind]+q0[0], np.zeros_like(tau[ind]), **line_params)
-  ax[0].plot(pert_mag[ind]+q0[0], tau[ind], **line_params)
-  ax[0].set_ylabel(r'Applied Torque' '\n' r'$\tau$')
+  ax[0, 0].plot(pert_mag[ind_a1]+q0[0], np.zeros_like(tau[ind_a1]), **line_params, color=color_a1)
+  ax[0, 0].plot(pert_mag[ind_a2]+q0[0], np.zeros_like(tau[ind_a2]), **line_params, color=color_a2)
+  ax[0, 0].plot(q0[0], 0, '.', **dot_params, color=sim_color)
+  ax[0, 0].set_ylabel(r'Applied Torque' '\n' r'$\tau$')
 
-  ax[1].plot(pert_mag[ind]+q0[0], q_nc[ind, 1], label="Uncontrolled")
-  ax[1].plot(pert_mag[ind]+q0[0], q[ind, 1], label="Controled")
-  ax[1].set_ylabel(r'Elbow Rotation' '\n' r'$\theta_2(t=T)$')
-  ax[1].legend()
-  ax[1].set_xlabel(r'Initial Shoulder Rotation' '\n' r'$\theta_1(0)$')
+  ax[0, 1].plot(pert_mag[ind_a1]+q0[0], tau[ind_a1], **line_params, color=color_a1)
+  ax[0, 1].plot(pert_mag[ind_a2]+q0[0], tau[ind_a2], **line_params, color=color_a2)
+  ax[0, 1].plot(q0[0], tau[zero_perturb_ind], '.', **dot_params, color=sim_color)
+
+  ax[1, 0].plot(pert_mag[ind_a1]+q0[0], q_nc[ind_a1, 1], **line_params, color=color_a1)
+  ax[1, 0].plot(pert_mag[ind_a2]+q0[0], q_nc[ind_a2, 1], **line_params, color=color_a2)
+  ax[1, 0].plot(q0[0], q_nc[zero_perturb_ind, 1], '.', **dot_params, color=sim_color)
+  ax[1, 0].set_ylabel(r'Elbow Rotation' '\n' r'$\theta_2(t=T)$')
+
+  ax[1, 1].plot(pert_mag[ind_a1]+q0[0], q[ind_a1, 1], **line_params, color=color_a1)
+  ax[1, 1].plot(pert_mag[ind_a2]+q0[0], q[ind_a2, 1], **line_params, color=color_a2)
+  ax[1, 1].plot(q0[0], q[zero_perturb_ind, 1], '.', **dot_params, color=sim_color)
+
+  ax[0, 0].set_ylim((-.1, .1))
+  ax[1, 0].set_ylim((2.0, 2.1))
+  #ax[1, 0].legend()
 
   #ax[0].set_title('Underactuated Double Pendulum')
-  plt.tight_layout()
 
-  ax[0].set_xlim((.6, .75))
+  #ax[1, 0].set_xlabel(r'Initial Shoulder Rotation' '\n' r'$\theta_1(0)$')
+  fig.text(0.5, .04, r'Initial Shoulder Rotation' '\n' r'$\theta_1(0)$', ha='center')
+
+  ax[0, 0].set_xlim((.6, .75))
 
   plt.savefig(_fig_folder/'nonsmooth_controller.png')
 
@@ -178,5 +199,4 @@ if __name__ == '__main__':
   else:
     generate_nonsmooth_controller()
 
-  plot_nonsmooth_controller()
-
+  generate_plot()

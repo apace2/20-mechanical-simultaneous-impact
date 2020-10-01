@@ -22,6 +22,7 @@ mpl.rc('font', **font)
 
 slope_line_params = {'linestyle':'--', 'dashes':(1, 1), 'linewidth':5}
 line_params = {'lw':5, 'ms':12}
+dot_params = {'ms':15}
 ax_line_params = {'lw':3, 'color':'k'}
 
 pos_color = 'b'
@@ -68,6 +69,7 @@ def forward_sim_perturbation(perturb_q0):
   Q = []
 
   # forward simulate perturbations
+  import ipdb; ipdb.set_trace()
   for perturb in tqdm(perturbation, desc="Simulating double pendulum:"):
     if perturb_q0:
       q0_tmp = q0_forward + np.array([perturb, 0])
@@ -103,8 +105,7 @@ def varsim():
   return Phi_10, Phi_01
 
 
-def plot(perturbation, Q, DQ, Phi_10, Phi_01):
-
+def generate_plot(perturbation, Q, DQ, Phi_10, Phi_01):
   zero_perturb_ind = np.isclose(perturbation, np.zeros_like(perturbation)).nonzero()[0][0]
 
   # plot simulated trajectories
@@ -130,9 +131,9 @@ def plot(perturbation, Q, DQ, Phi_10, Phi_01):
   pos_pert = perturbation[zero_perturb_ind:]
   neg_pert = perturbation[:zero_perturb_ind+1]
   if perturb_q0:
-    nom_state = Q[zero_perturb_ind][0]
+    nom_state = q0_forward[0]
   else:
-    nom_state = Q[zero_perturb_ind][1]
+    nom_state = q0_forward[1]
   #plot simulation
   #ax[0].plot(pos_pert+nom_state, Phi_01[0, col_ind]*pos_pert + Q[zero_perturb_ind][0],
   #           color=pos_slope_color, **slope_line_params)
@@ -155,10 +156,10 @@ def plot(perturbation, Q, DQ, Phi_10, Phi_01):
              color=neg_slope_color, **slope_line_params)
   ax[0].plot(neg_pert+nom_state, Q[:zero_perturb_ind+1, 1],
              color=neg_color, **line_params)
-  ax[0].plot(nom_state, Q[zero_perturb_ind, 1], '.', color=sim_color)
+  ax[0].plot(nom_state, Q[zero_perturb_ind, 1], '.', color=sim_color, **dot_params)
 
   ax[0].set_xlabel(r'$\theta_1(t=0)$')
-  ax[0].set_xlim((-.1, .5))
+  ax[0].set_xlim((.4, .9))
   #velocity
   if num_subplots > 2:
     ax[2].plot(perturbation, DQ[:, 0])
@@ -223,4 +224,4 @@ if __name__ == '__main__':
     Phi_10, Phi_01 = varsim()
     np.savez(filename_varsim, Phi_01=Phi_01, Phi_10=Phi_10)
 
-  plot(perturbation, Q, DQ, Phi_10, Phi_01)
+  generate_plot(perturbation, Q, DQ, Phi_10, Phi_01)
