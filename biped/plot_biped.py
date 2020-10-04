@@ -121,7 +121,8 @@ def draw_figure(showfig=True, savefig=True):
         plt.show()
 
     if savefig:
-        plt.savefig(_fig_folder / (figname + '.png'), dpi=600)
+        #plt.savefig(_fig_folder / (figname + '.png'), dpi=600)
+        plt.savefig(_fig_folder / (figname + '.pdf'), dpi=600)
 
     mpl.rcParams.update(mpl.rcParamsDefault)
 

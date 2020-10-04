@@ -21,8 +21,6 @@ from .run_biped import perturbation_suffix
 from .Biped import RigidBiped, PCrBiped, DecoupledBiped
 
 figname = 'pcr_flow'
-flywheel_style = {'marker':'o', 'markersize':20, 'color':'darkgrey',
-                  'markeredgecolor':'dimgrey', 'mew':3}
 foot_style = {'marker':'o', 'markersize':10}
 spring_leg_style = {'lw':3, 'color':'grey'}
 body_style = {'linestyle':'-', 'lw':10, 'color':'black'}
@@ -67,29 +65,6 @@ def color_scale(val, scale=.5):
     #sigmoid scaling
     tmp = val*20-10
     return 1/(1+np.exp(-scale*tmp))
-
-try:
-    filename_trjs = _data_folder / ('.PCr_trjs.pkl')
-    data = pickle.load(filename_trjs.open(mode='rb'))
-
-except FileNotFoundError:
-    print("Not all data files exist.")
-    print("Please run `biped\\run_biped.py`")
-    sys.exit(0)
-
-#if nofigurefirst:
-#    plt.rc('text', usetex=True)
-#    plt.rc('text.latex', preamble=r'\usepackage{cmbright}')
-#    plt.ion()
-#
-#    fig = plt.figure(constrained_layout=True, figsize=(5, 5))
-#    gs1 = fig.add_gridspec(nrows=1, ncols=1)
-#    ax1 = fig.add_subplot(gs1[0, :])
-#    ax1.set_aspect(aspect='equal')
-#else:
-#    layout = FigureLayout(_data_folder/'pcr_outline.svg', make_mplfigures=True)
-#    ax1 = layout.axes['plot']
-
 
 
 def draw_flow(ax, indices, tvals, t_offset=0):
@@ -188,7 +163,6 @@ def draw_flow(ax, indices, tvals, t_offset=0):
                 continue
         return np.array(T), np.array(Theta)
 
-
     ##########################################
     # main plot
     # Theta plot with hatch marks
@@ -283,10 +257,6 @@ def draw_flow(ax, indices, tvals, t_offset=0):
     # flip the y axis
     ax.invert_yaxis()
 
-#if nofigurefirst:
-#    fig.savefig(_fig_folder / (figname + '.png'))
-#    sys.exit(0)
-
 #draw the diagrams
 def draw_fig(ax, ind, tval, p):
     color = cmap_tot(color_scale(ind/len(data)))
@@ -301,54 +271,80 @@ def draw_fig(ax, ind, tval, p):
     #ax.set_ylim((-.1, 1.2))
     ax.axis('equal')
 
-fig = plt.figure(figsize=(6, 4))
-#plt.rc('text', usetex=True)
-#lt.rc('text.latex', preamble=r'\usepackage{cmbright}')
+if __name__ == '__main__':
+    try:
+        filename_trjs = _data_folder / ('.PCr_trjs.pkl')
+        data = pickle.load(filename_trjs.open(mode='rb'))
 
-widths = [1, .6, 2, 1]
-gs = fig.add_gridspec(nrows=2, ncols=4, width_ratios=widths, left=.01, right=.99,
-                      top=.95, bottom=.15, hspace=0, wspace=0.05)
+    except FileNotFoundError:
+        print("Not all data files exist.")
+        print("Please run `biped\\run_biped.py`")
+        sys.exit(0)
 
-class layout:
-    axes = {}
+    #if nofigurefirst:
+    #    plt.rc('text', usetex=True)
+    #    plt.rc('text.latex', preamble=r'\usepackage{cmbright}')
+    #    plt.ion()
+    #
+    #    fig = plt.figure(constrained_layout=True, figsize=(5, 5))
+    #    gs1 = fig.add_gridspec(nrows=1, ncols=1)
+    #    ax1 = fig.add_subplot(gs1[0, :])
+    #    ax1.set_aspect(aspect='equal')
+    #else:
+    #    layout = FigureLayout(_data_folder/'pcr_outline.svg', make_mplfigures=True)
+    #    ax1 = layout.axes['plot']
 
+    #if nofigurefirst:
+    #    fig.savefig(_fig_folder / (figname + '.png'))
+    #    sys.exit(0)
 
-layout.axes['plot'] = fig.add_subplot(gs[:, 2])
-layout.axes['diag_pos_ic'] = fig.add_subplot(gs[0, -1])
-layout.axes['diag_pos_final'] = fig.add_subplot(gs[1, -1])
-layout.axes['diag_neg_ic'] = fig.add_subplot(gs[0, 0])
-layout.axes['diag_neg_final'] = fig.add_subplot(gs[1, 0])
-ax = layout.axes['plot']
+    fig = plt.figure(figsize=(6, 4))
+    #plt.rc('text', usetex=True)
+    #lt.rc('text.latex', preamble=r'\usepackage{cmbright}')
 
-indices = [10, 17, 24, 30, 36, 43, 50]
-t_offset = -1  # simultaneous impact occurs at t=1 for the nominal configuration
-t_offset = -.7
-tvals = np.array([.75, 1.1]) + t_offset  # values at which to plot cross sections
-draw_flow(ax, indices, tvals, t_offset)
-#ax.set_ylim(ylim_plot)
+    widths = [1, .6, 2, 1]
+    gs = fig.add_gridspec(nrows=2, ncols=4, width_ratios=widths, left=.01, right=.99,
+                          top=.95, bottom=.15, hspace=0, wspace=0.05)
 
-p = PCrBiped.nominal_parameters()
-p['flywheel_style'] = flywheel_style
-p['foot_style'] = foot_style
-p['spring_leg_style'] = spring_leg_style
-p['body_style'] = body_style
+    layout = {}
 
-ax = layout.axes['diag_pos_ic']
-ind = indices[-1]
-draw_fig(ax, ind, tvals[0]-t_offset, p)
+    layout['plot'] = fig.add_subplot(gs[:, 2])
+    layout['diag_pos_ic'] = fig.add_subplot(gs[0, -1])
+    layout['diag_pos_final'] = fig.add_subplot(gs[1, -1])
+    layout['diag_neg_ic'] = fig.add_subplot(gs[0, 0])
+    layout['diag_neg_final'] = fig.add_subplot(gs[1, 0])
 
-ax = layout.axes['diag_pos_final']
-draw_fig(ax, ind, tvals[1]-t_offset, p)
+    # flow plot
+    ax = layout['plot']
+    indices = [10, 17, 24, 30, 36, 43, 50]
+    t_offset = -1  # simultaneous impact occurs at t=1 for the nominal configuration
+    t_offset = -.7
+    tvals = np.array([.75, 1.1]) + t_offset  # values at which to plot cross sections
+    draw_flow(ax, indices, tvals, t_offset)
+    #ax.set_ylim(ylim_plot)
 
-ind = indices[0]
-ax = layout.axes['diag_neg_ic']
-draw_fig(ax, ind, tvals[0]-t_offset, p)
-ax = layout.axes['diag_neg_final']
-draw_fig(ax, ind, tvals[1]-t_offset, p)
+    p = PCrBiped.nominal_parameters()
+    p['foot_style'] = foot_style
+    p['spring_leg_style'] = spring_leg_style
+    p['body_style'] = body_style
 
-filename = _fig_folder / figname
-#layout.save(str(filename)+'.svg')
-plt.savefig(str(filename) + '.png', dpi=600)
-plt.savefig(str(filename) + '.svg')
-plt.ion()
-plt.show()
+    ax = layout['diag_pos_ic']
+    ind = indices[-1]
+    draw_fig(ax, ind, tvals[0]-t_offset, p)
+
+    ax = layout['diag_pos_final']
+    draw_fig(ax, ind, tvals[1]-t_offset, p)
+
+    ind = indices[0]
+    ax = layout['diag_neg_ic']
+    draw_fig(ax, ind, tvals[0]-t_offset, p)
+    ax = layout['diag_neg_final']
+    draw_fig(ax, ind, tvals[1]-t_offset, p)
+
+    filename = _fig_folder / figname
+    #layout.save(str(filename)+'.svg')
+    #plt.savefig(str(filename) + '.png', dpi=600)
+    plt.savefig(str(filename) + '.pdf')
+    plt.savefig(str(filename) + '.svg')
+    plt.ion()
+    plt.show()

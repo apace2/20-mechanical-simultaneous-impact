@@ -182,8 +182,8 @@ def generate_plot(perturbation, Q, DQ, Phi_10, Phi_01):
   plt.ion()
   plt.show()
 
-  fig.savefig(_fig_folder / 'dp_pcr_flow.png')
-
+  #fig.savefig(_fig_folder / 'dp_pcr_flow.png')
+  fig.savefig(_fig_folder / 'dp_pcr_flow.pdf')
 
 
 if __name__ == '__main__':

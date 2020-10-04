@@ -3,21 +3,23 @@
 import copy
 import sympy
 from scipy import linalg as la
-import matplotlib.lines as mlines
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.animation import FuncAnimation
 
 import util
 
 from pendulum import _fig_folder
 
-default_gnd_style = {'facecolor':'peachpuff', 'edgecolor':'black', 'hatch':'//', 'fill':True}
-default_a2_style = {'facecolor':'peachpuff', 'edgecolor':'black', 'hatch':'//'}
+gnd_style = {'facecolor':'peachpuff', 'edgecolor':'black', 'hatch':'//', 'fill':True}
 a1_color = 'red'
 a2_color = 'blue'
-gnd_outline = {'facecolor':'none', 'edgecolor':a1_color, 'linewidth':5}
+a2_style = {'facecolor':'peachpuff', 'edgecolor':'black', 'hatch':'//'}
+a1_outline = {'facecolor':'none', 'edgecolor':a1_color, 'linewidth':5}
 a2_outline = {'facecolor':'none', 'edgecolor':a2_color, 'linewidth':5}
+segment_params = {'linestyle':'-', 'lw':10}
+marker_params = {'marker':'o', 'markersize':15, 'mec':'orange', 'mew':5, 'linestyle':'None'}
 
 def draw_ground(ax, p, z=0, depth=.1, xc=0.0, width=6):
   '''
@@ -32,18 +34,13 @@ def draw_ground(ax, p, z=0, depth=.1, xc=0.0, width=6):
     width - width of the patch
   '''
 
-  if 'gnd_style' in p:
-    gnd_style = p['gnd_style']
-  else:
-    gnd_style = default_gnd_style
-
   rect = patches.Rectangle((xc-width, z-depth), width, depth, **gnd_style)
   ax.add_patch(rect)
 
   wedge = patches.Wedge([0, 0], depth, theta1=-90, theta2=0, zorder=-81, **gnd_style)
   ax.add_patch(wedge)
 
-  wedge = patches.Wedge([0, 0], depth, theta1=-90, theta2=0, zorder=-80, **gnd_outline)
+  wedge = patches.Wedge([0, 0], depth, theta1=-90, theta2=0, zorder=-80, **a1_outline)
   ax.add_patch(wedge)
 
   return ax
@@ -227,12 +224,82 @@ class DoublePendulum:
     return p
 
   @classmethod
-  def draw_config(cls, q, p, draw_a1=True, ax=None, color=None):
+  def calc_segments(cls, q, p):
+    # calculate segment end points in complex numbers
+
+    O = 0  # orign
+    P1 = p['l0']*np.exp(1.j*q[0])
+    P2 = p['l1']*np.exp(1.j*(q[0]+q[1]))+P1
+
+    seg1 = np.array([O, P1])
+    seg2 = np.array([P1, P2])
+
+    return seg1, seg2, P1, P2
+
+  @classmethod
+  def anim(cls, trjs, p, fps=24):
+    fig, ax = plt.subplots(1, 1)
+
+    t, Q, _, _ = util.obs(trjs, DoublePendulum, p)
+    q0 = Q[0]
+
+    handles = {}
+
+    def init():
+      ax.axis('equal')
+      ax.set_xlim(-.2, .7)
+      ax.set_ylim(-.1, .7)
+      draw_ground(ax, p)
+      _, handles_fig = cls.draw_config(q0, p, ax, color='black')
+      handles['seg2'] = handles_fig[0]
+      handles['seg1'] = handles_fig[1]
+      handles['hinges'] = handles_fig[2]
+      handles['a2'] = handles_fig[3]
+      handles['a2_outline'] = handles_fig[4]
+
+      return handles.values()
+
+    def animate(_t):
+      i = (t >= _t).nonzero()[0][0]
+      q = Q[i]
+      seg1, seg2, P1, _ = cls.calc_segments(q, p)
+
+      #segment 2
+      handles['seg2'].set_data(seg2.real, seg2.imag)
+
+      #segment 1
+      handles['seg1'].set_data(seg1.real, seg1.imag)
+
+      #hinges
+      handles['hinges'].set_data(seg1.real, seg1.imag)
+
+      #a2 constraint
+
+      theta1, theta2 = np.rad2deg(q[0]+p['a1']), -180+np.rad2deg(q[0])
+      handles['a2'].set_center([P1.real, P1.imag])
+      handles['a2'].set_theta1(theta1)
+      handles['a2'].set_theta2(theta2)
+      handles['a2_outline'].set_center([P1.real, P1.imag])
+      handles['a2_outline'].set_theta1(theta1)
+      handles['a2_outline'].set_theta2(theta2)
+      return handles.values()
+
+    interval = int(1./fps*1000)
+    ani = FuncAnimation(fig, animate, np.arange(0., t[-1], 1./fps), init_func=init,
+                        blit=True, repeat=True, interval=200)
+
+    plt.ion()
+    plt.show()
+
+    return ani
+
+
+  @classmethod
+  def draw_config(cls, q, p, ax=None, color='blue'):
     '''Draw the configuration of the double pendulum
 
     q - [theta0, theta1]
-    p - parameter dict with l0 and l1, (and m1 if draw_a1 is True)
-    draw_a1 - Draw constraint a1
+    p - parameter dict with l0 and l1
     ax - axis to draw the parameter on, if None create new fig and ax
 
     additional parameters in p change the color of the plotted lines:
@@ -241,55 +308,32 @@ class DoublePendulum:
 
     return ax
     '''
-
-    default_constraint_lp = {'color':'.8'}
-    if color is None:
-      default_beam_lp = {'color': 'blue'}
-    else:
-      default_beam_lp = {'color': color}
     if ax is None:
       _, ax = plt.subplots(1)
 
-    def R(theta):
-      #Rotation matrix about the z-axis
-      R = np.array([[np.cos(theta), -np.sin(theta)],
-                    [np.sin(theta), np.cos(theta)]])
-      return R
+    seg1, seg2, P1, _ = cls.calc_segments(q, p)
 
-    O = 0  # orign
-    P1 = p['l0']*np.exp(1.j*q[0])
-    P2 = p['l1']*np.exp(1.j*(q[0]+q[1]))+P1
+    #plot segments
+    seg2_handle, = ax.plot(seg2.real, seg2.imag, **segment_params, color=color)
+    seg1_handle,= ax.plot(seg1.real, seg1.imag, **segment_params, color=color)
+    #plot "hinges"
+    hinges_handle, = ax.plot(seg1.real, seg1.imag, **marker_params, mfc=color)
 
-    if color is None:
-      lc = 'blue'
-    else:
-      lc = color
-    mec = 'orange'  #marker edge color
-    segment_params = {'linestyle':'-', 'lw':10, 'color':lc}
-    marker_params = {'marker':'o', 'markersize':15, 'mec':mec, 'mew':5, 'mfc':lc}
-    plot_params = {'marker':'o', 'linestyle':'-', 'markersize':15,
-                   'lw':10, 'mec':mec, 'mew':5, 'mfc':lc, 'color':lc}
-    seg1 = np.array([O, P1])
-    seg2 = np.array([P1, P2])
-    #ax.plot(seg2.real, seg2.imag, **plot_params)
-    #ax.plot(seg1.real, seg1.imag, **segment_params)
-    ax.plot(seg2.real, seg2.imag, **segment_params)
-    ax.plot(seg1.real, seg1.imag, **plot_params)
-    #ax.plot(seg1[0].real, seg1[0].imag, **marker_params)
-    #ax.plot(seg1[1].real, seg1[1].imag, **marker_params, zorder=10)
-
+    #plot constraints
     draw_ground(ax, p)
-    wedge = patches.Wedge([P1.real, P1.imag], .15, np.rad2deg(q[0]+p['a1']), -180+np.rad2deg(q[0]),
-                          **default_a2_style, zorder=-100)
-    if draw_a1:
-      ax.add_patch(wedge)
 
-    # add color outline to indicate guard
+    # add a2
+    # Two wedges as setting linecolor changes hatches color
     wedge = patches.Wedge([P1.real, P1.imag], .15, np.rad2deg(q[0]+p['a1']), -180+np.rad2deg(q[0]),
-        zorder=-99, **a2_outline)
+                          **a2_style, zorder=-100)
     ax.add_patch(wedge)
+    wedge_outline = patches.Wedge([P1.real, P1.imag], .15, np.rad2deg(q[0]+p['a1']), -180+np.rad2deg(q[0]),
+        zorder=-99, **a2_outline)
+    ax.add_patch(wedge_outline)
 
-    return ax
+    handles = [seg2_handle, seg1_handle, hinges_handle, wedge, wedge_outline]
+
+    return ax, handles
 
 
 def generate_DP_impages():
@@ -307,48 +351,47 @@ def generate_DP_impages():
 
   plt.ion()
 
-  fig, ax = plt.subplots(1)
-  DoublePendulum.draw_config(rho, p, ax=ax, draw_a1=True, color='black')
-  set_lim(ax)
-  ax.set_title('Configuration at simultaneous impact')
-  fig.savefig(_fig_folder / 'dp_sim_impact.png')
 
-  fig, ax = plt.subplots(1)
-  DoublePendulum.draw_config(q0, p, ax=ax, draw_a1=True, color='black')
-  set_lim(ax)
-  plt.savefig(_fig_folder / 'nominal.svg')
-  ax.set_title('Configuration at t=0')
-  plt.savefig(_fig_folder / 'dp_q0_nominal.png')
+def test_anim():
+  p = DoublePendulum.nominal_parameters()
+  J = [0, 0]
+  dt = 1e-4  # at dt=1e-3 simulatenous impact doesn't occur
+  dt = 1e-3  # still see the PCr nature in perturbation plots
+  rx = 1e-7
+  # find initial condition for simultaneous contact
+  q0 = DoublePendulum.simultaneous_impact_configuration(p)
+  dq0 = DoublePendulum.simultaneous_impact_velocity()
+  t0_back = .7
 
-  #fig, ax = plt.subplots(1)
-  q0plus = q0 + np.array([1, 0]) * .05
-  DoublePendulum.draw_config(q0plus, p, ax=ax, draw_a1=False)
-  set_lim(ax)
-  plt.savefig(_fig_folder / 'dp_q0plus.png')
+  ##simulate backwards
+  #tstop_back = 0
+  #trjs_back = util.sim(DoublePendulum, tstop_back, dt, rx, t0_back, q0, dq0, J, p)
 
-  fig, ax = plt.subplots(1)
-  q0minus = q0 + np.array([1, 0]) * -.05
-  DoublePendulum.draw_config(q0, p, ax=ax, draw_a1=False, color='black')
-  DoublePendulum.draw_config(q0minus, p, ax=ax, draw_a1=False, color='red')
-  set_lim(ax)
-  plt.savefig(_fig_folder / 'dp_q0minus.png')
+  #q0 = trjs_back[-1]['q'][-1]
+  #dq0 = trjs_back[-1]['dq'][-1]
+  tstop = 2*t0_back
+  t0 = 0
 
+  q0 = np.array([0.68154256, 1.29426896])
+  dq0 = np.array([-0.99205791, 1.9429129])
+  trjs = util.sim(DoublePendulum, tstop, dt, rx, t0, q0, dq0, J, p)
+  ani = DoublePendulum.anim(trjs, p)
 
 if __name__ == '__main__':
-  plt.ion()
-  p = DoublePendulum.nominal_parameters()
+  test_anim()
+  #plt.ion()
+  #p = DoublePendulum.nominal_parameters()
 
-  t = .7
-  q0, dq0 = DoublePendulum.x0(t, p)
-  def set_lim(ax):
-    ax.axis('equal')
-    ax.set(xlim=(-.2,.7), ylim=(-.1,.7))
-    ax.axis('off')
+  #t = .7
+  #q0, dq0 = DoublePendulum.x0(t, p)
+  #def set_lim(ax):
+  #  ax.axis('equal')
+  #  ax.set(xlim=(-.2,.7), ylim=(-.1,.7))
+  #  ax.axis('off')
 
-  plt.ion()
+  #plt.ion()
 
-  fig, ax = plt.subplots(1)
-  DoublePendulum.draw_config(q0, p, ax=ax, draw_a1=True, color='black')
-  set_lim(ax)
-  plt.savefig(_fig_folder / 'nominal.svg')
-  ax.set_title('Configuration at t=0')
+  #fig, ax = plt.subplots(1)
+  #DoublePendulum.draw_config(q0, p, ax=ax, color='black')
+  #set_lim(ax)
+  #plt.savefig(_fig_folder / 'nominal.svg')

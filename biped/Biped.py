@@ -1,5 +1,6 @@
 # vim: expandtab tabstop=2 shiftwidth=2
 from collections import defaultdict
+from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
@@ -7,6 +8,7 @@ import sympy as sym
 from sympy.physics.mechanics import dynamicsymbols
 
 from hybrid import HybridSystem
+import util
 
 #parameters for drawings / animations
 body_color = 'k'
@@ -46,7 +48,8 @@ def draw_ground(ax, p, z=0, depth=.1, xc=0, width=1):
 
   rect = patches.Rectangle((xc-width/2, z-depth), width, depth, **gnd_style)
   ax.add_patch(rect)
-  return ax
+  handles = {'ground':rect}
+  return ax, handles
 
 
 class Biped(HybridSystem):
@@ -272,14 +275,17 @@ class RigidBiped(Biped):
     else:
       foot_style = default_foot_style
 
-    ax.plot(np.real(body), np.imag(body), **body_style)
-    ax.plot(np.real(lleg), np.imag(lleg), **leg_style, zorder=-1)
-    ax.plot(np.real(rleg), np.imag(rleg), **leg_style, zorder=-1)
-    ax.plot(q[cls.ixl], q[cls.izl], **foot_style, color=left_color)
-    ax.plot(q[cls.ixr], q[cls.izr], **foot_style, color=right_color)
+    body_h, = ax.plot(np.real(body), np.imag(body), **body_style)
+    lleg_h, = ax.plot(np.real(lleg), np.imag(lleg), **leg_style, zorder=-1)
+    rleg_h, = ax.plot(np.real(rleg), np.imag(rleg), **leg_style, zorder=-1)
+    lfoot_h, = ax.plot(q[cls.ixl], q[cls.izl], **foot_style, color=left_color)
+    rfoot_h, = ax.plot(q[cls.ixr], q[cls.izr], **foot_style, color=right_color)
 
-    ax = draw_ground(ax, p)
-    return ax
+    handles = {'body':body_h, 'lleg':lleg_h, 'rleg':rleg_h, 'lfoot':lfoot_h, 'rfoot':rfoot_h}
+
+    ax, gnd_handle = draw_ground(ax, p)
+    handles.update(gnd_handle)
+    return ax, handles
 
 class DecoupledBiped(Biped):
   Fs = None
@@ -396,34 +402,80 @@ class DecoupledBiped(Biped):
     else:
       foot_style = default_foot_style
 
-    ax.plot(np.real(body), np.imag(body), **body_style)
+    body_h, = ax.plot(np.real(body), np.imag(body), **body_style)
     #ax.plot(np.real(lleg), np.imag(lleg), **spring_leg_style, zorder=-1)
     #ax.plot(np.real(rleg), np.imag(rleg), **spring_leg_style, zorder=-1)
     lleg_spring = cls.spring(lleg[0], lleg[1], h=.1)
     rleg_spring = cls.spring(rleg[0], rleg[1], h=.1)
-    ax.plot(np.real(lleg_spring), np.imag(lleg_spring), **spring_leg_style, zorder=-1)
-    ax.plot(np.real(rleg_spring), np.imag(rleg_spring), **spring_leg_style, zorder=-1)
-    ax.plot(q[cls.ixl], q[cls.izl], **foot_style, color=left_color)
-    ax.plot(q[cls.ixr], q[cls.izr], **foot_style, color=right_color)
+    lleg_h, = ax.plot(np.real(lleg_spring), np.imag(lleg_spring), **spring_leg_style, zorder=-1)
+    rleg_h, = ax.plot(np.real(rleg_spring), np.imag(rleg_spring), **spring_leg_style, zorder=-1)
+    lfoot_h, = ax.plot(q[cls.ixl], q[cls.izl], **foot_style, color=left_color)
+    rfoot_h, = ax.plot(q[cls.ixr], q[cls.izr], **foot_style, color=right_color)
 
-    ax = draw_ground(ax, p)
-    return ax
+    handles = {'body':body_h, 'rleg':rleg_h, 'lleg':lleg_h, 'lfoot':lfoot_h, 'rfoot':rfoot_h}
+
+    ax, gnd_handle = draw_ground(ax, p)
+    handles.update(gnd_handle)
+    return ax, handles
 
 
 class PCrBiped(DecoupledBiped):
   @classmethod
+  def anim(cls, trjs, p, fps=24):
+    fig, ax = plt.subplots(1, 1)
+
+    t, Q, _, _ = util.obs(trjs, cls, p)
+    q0 = Q[0]
+
+    handles = {}
+
+    def init():
+      ax.set_xlim(-.5, .5)
+      ax.set_ylim(-.1, 1.1)
+      _, handles_fig = cls.draw_config(q0, p, ax)
+
+      handles.update(handles_fig)
+
+      return handles.values()
+
+    def animate(_t):
+      i = (t >= _t).nonzero()[0][0]
+      q = Q[i]
+
+      hipl = np.exp(1j*q[cls.ith])*(-p['wh']) + (q[cls.ixb] + 1j*q[cls.izb])
+      hipr = np.exp(1j*q[cls.ith])*(+p['wh']) + (q[cls.ixb] + 1j*q[cls.izb])
+      body = [hipl, hipr]
+      lleg = [hipl, (q[cls.ixl]+1j*q[cls.izl])]
+      rleg = [hipr, (q[cls.ixr]+1j*q[cls.izr])]
+      lleg_spring = cls.spring(lleg[0], lleg[1], h=.1)
+      rleg_spring = cls.spring(rleg[0], rleg[1], h=.1)
+
+      handles['body'].set_data(np.real(body), np.imag(body))
+      handles['rleg'].set_data(np.real(rleg_spring), np.imag(rleg_spring))
+      handles['lleg'].set_data(np.real(lleg_spring), np.imag(lleg_spring))
+      handles['lfoot'].set_data(q[cls.ixl], q[cls.izl])
+      handles['rfoot'].set_data(q[cls.ixr], q[cls.izr])
+      handles['fly_disk'].set_data(q[cls.ixb], q[cls.izb])
+      handles['fly_dot'].set_data(q[cls.ixb], q[cls.izb])
+      return handles.values()
+
+    ani = FuncAnimation(fig, animate, np.arange(0., t[-1], 1./fps), init_func=init,
+                        blit=True, repeat=True, interval=200)
+
+    plt.ion()
+    plt.show()
+
+    return ani
+
+  @classmethod
   def draw_config(cls, q, p, ax=None):
-    ax = super(PCrBiped, cls).draw_config(q, p, ax)
+    ax, handles = super(PCrBiped, cls).draw_config(q, p, ax)
 
     #draw the flywheel
-    if 'flywheel_style' in p:
-      ax.plot(q[cls.ixb], q[cls.izb], **p['flywheel_style'])
-      ax.plot(q[cls.ixb], q[cls.izb], marker='.', color='black', markersize=5)
-
-    else:
-      ax.plot(q[cls.ixb], q[cls.izb], **default_flywheel_style)
-      ax.plot(q[cls.ixb], q[cls.izb], marker='.', color='black', markersize=5)
-    return ax
+    fly1, = ax.plot(q[cls.ixb], q[cls.izb], **default_flywheel_style)
+    fly2, = ax.plot(q[cls.ixb], q[cls.izb], marker='.', color='black', markersize=5)
+    handles.update({'fly_disk':fly1, 'fly_dot':fly2})
+    return ax, handles
 
   @classmethod
   def nominal_parameters(cls):
@@ -447,11 +499,24 @@ class PCrBiped(DecoupledBiped):
     f = fp + f_fly
     return f
 
+def test_anim():
+  p = PCrBiped.nominal_parameters()
+  theta = 0
+  q0, dq0, J = PCrBiped.ic(p, theta)
+  J = [False, False]
+  rx = 1e-5
+  dt = 1e-2
+  t0 = 0
+  tstop = 1.4
+  trjs = util.sim(PCrBiped, tstop, dt, rx, t0, q0, dq0, J, p)
+  anim = PCrBiped.anim(trjs, p)
+
 
 if __name__ == '__main__':
-  plt.ion()
-  p = RigidBiped.nominal_parameters()
-  q0, dq0, J = RigidBiped.ic(p, .1)
-  ax = PCrBiped.draw_config(q0, p)
-  ax.axis('off')
-  plt.tight_layout()
+  test_anim()
+  #plt.ion()
+  #p = RigidBiped.nominal_parameters()
+  #q0, dq0, J = RigidBiped.ic(p, .1)
+  #ax = PCrBiped.draw_config(q0, p)
+  #ax.axis('off')
+  #plt.tight_layout()

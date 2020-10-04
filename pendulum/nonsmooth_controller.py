@@ -140,6 +140,7 @@ def generate_plot():
   q0 = data['q0']
 
   fig, ax = plt.subplots(2, 2, sharex='all', sharey='row',
+      #gridspec_kw={'hspace':.1, 'left':.05, 'right':.85, 'bottom':.2})
       gridspec_kw={'hspace':.1, 'left':.2, 'right':.95, 'bottom':.2})
 
 
@@ -152,7 +153,6 @@ def generate_plot():
   ax[0, 0].plot(pert_mag[ind_a1]+q0[0], np.zeros_like(tau[ind_a1]), **line_params, color=color_a1)
   ax[0, 0].plot(pert_mag[ind_a2]+q0[0], np.zeros_like(tau[ind_a2]), **line_params, color=color_a2)
   ax[0, 0].plot(q0[0], 0, '.', **dot_params, color=sim_color)
-  ax[0, 0].set_ylabel(r'Applied Torque' '\n' r'$\tau$')
 
   ax[0, 1].plot(pert_mag[ind_a1]+q0[0], tau[ind_a1], **line_params, color=color_a1)
   ax[0, 1].plot(pert_mag[ind_a2]+q0[0], tau[ind_a2], **line_params, color=color_a2)
@@ -161,7 +161,6 @@ def generate_plot():
   ax[1, 0].plot(pert_mag[ind_a1]+q0[0], q_nc[ind_a1, 1], **line_params, color=color_a1)
   ax[1, 0].plot(pert_mag[ind_a2]+q0[0], q_nc[ind_a2, 1], **line_params, color=color_a2)
   ax[1, 0].plot(q0[0], q_nc[zero_perturb_ind, 1], '.', **dot_params, color=sim_color)
-  ax[1, 0].set_ylabel(r'Elbow Rotation' '\n' r'$\theta_2(t=T)$')
 
   ax[1, 1].plot(pert_mag[ind_a1]+q0[0], q[ind_a1, 1], **line_params, color=color_a1)
   ax[1, 1].plot(pert_mag[ind_a2]+q0[0], q[ind_a2, 1], **line_params, color=color_a2)
@@ -173,12 +172,26 @@ def generate_plot():
 
   #ax[0].set_title('Underactuated Double Pendulum')
 
+  ax[0, 0].set_ylabel(r'Applied Torque' '\n' r'$\tau$')
+  #ax[0, 1].yaxis.set_label_position('right')
+  ax[1, 0].set_ylabel(r'Elbow Rotation' '\n' r'$\theta_2(t=T)$')
+  #ax[1, 1].yaxis.set_label_position('right')
+
+  #ax[0, 0].yaxis.set_ticks_position('right')
+  #ax[0, 0].set_yticklabels([])
+  #ax[1, 0].set_yticklabels([])
+  #ax[1, 0].yaxis.set_ticks_position('right')
+
+  #ax[0, 1].yaxis.set_ticks_position('right')
+  #ax[1, 1].yaxis.set_ticks_position('right')
+
   #ax[1, 0].set_xlabel(r'Initial Shoulder Rotation' '\n' r'$\theta_1(0)$')
   fig.text(0.5, .04, r'Initial Shoulder Rotation' '\n' r'$\theta_1(0)$', ha='center')
 
   ax[0, 0].set_xlim((.6, .75))
 
-  plt.savefig(_fig_folder/'nonsmooth_controller.png')
+  #plt.savefig(_fig_folder/'nonsmooth_controller.png')
+  plt.savefig(_fig_folder/'nonsmooth_controller.pdf')
 
 
 if __name__ == '__main__':
