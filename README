@@ -1,4 +1,4 @@
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/apace2/20-pcr-figures/master?filepath=runme.ipynb)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/apace2/20-mechanical-simultaneous-impact/master?filepath=runme.ipynb)
 
 Code used in chapter 3 of my dissertation ("Stepping Towards Control of Systems Undergoing Impact for Legged Locomotion").
 `runme.ipynb` collects the necessary commands to generate the figures.
