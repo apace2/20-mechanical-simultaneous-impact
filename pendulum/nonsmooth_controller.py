@@ -41,7 +41,7 @@ def generate_nonsmooth_controller():
   #  simultaneous impact
 
   p = DP.nominal_parameters()
-  p['debug'] = True
+  p['debug'] = False
   J = [0, 0]
   dt = 1e-4  # at dt=1e-3 simulatenous impact doesn't occur
   dt = 1e-3  # still see the PCr nature in perturbation plots

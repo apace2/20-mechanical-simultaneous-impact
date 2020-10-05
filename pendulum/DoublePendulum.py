@@ -239,6 +239,7 @@ class DoublePendulum:
   @classmethod
   def anim(cls, trjs, p, fps=24):
     fig, ax = plt.subplots(1, 1)
+    ax.axis('off')
 
     t, Q, _, _ = util.obs(trjs, DoublePendulum, p)
     q0 = Q[0]

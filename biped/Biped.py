@@ -182,6 +182,49 @@ class RigidBiped(Biped):
   DtDb_sym = None
 
   @classmethod
+  def anim(cls, trjs, p, fps=24):
+    fig, ax = plt.subplots(1, 1, figsize=(3,3))
+    ax.axis('off')
+
+    t, Q, _, _ = util.obs(trjs, cls, p)
+    q0 = Q[0]
+
+    handles = {}
+    def init():
+      #ax.set_xlim(-.5, .5)
+      ax.set_xlim(-.6, .6)
+      ax.set_ylim(-.1, 1.1)
+      _, handles_fig = cls.draw_config(q0, p, ax)
+
+      handles.update(handles_fig)
+
+      return handles.values()
+
+    def animate(_t):
+      i = (t >= _t).nonzero()[0][0]
+      q = Q[i]
+      hipl = np.exp(1j*q[cls.ith])*(-p['wh']) + (q[cls.ixb] + 1j*q[cls.izb])
+      hipr = np.exp(1j*q[cls.ith])*(+p['wh']) + (q[cls.ixb] + 1j*q[cls.izb])
+      body = [hipl, hipr]
+      lleg = [hipl, (q[cls.ixl]+1j*q[cls.izl])]
+      rleg = [hipr, (q[cls.ixr]+1j*q[cls.izr])]
+
+      handles['body'].set_data(np.real(body), np.imag(body))
+      handles['rleg'].set_data(np.real(rleg), np.imag(rleg))
+      handles['lleg'].set_data(np.real(lleg), np.imag(lleg))
+      handles['lfoot'].set_data(q[cls.ixl], q[cls.izl])
+      handles['rfoot'].set_data(q[cls.ixr], q[cls.izr])
+      return handles.values()
+
+    ani = FuncAnimation(fig, animate, np.arange(0., t[-1], 1./fps), init_func=init,
+                        blit=True, repeat=True, interval=200)
+
+    plt.ion()
+    plt.show()
+
+    return ani
+
+  @classmethod
   def R(cls, t, k, q, dq, J, p):
     '''
     The RigidBiped behaves like the rocking block,
@@ -422,7 +465,8 @@ class DecoupledBiped(Biped):
 class PCrBiped(DecoupledBiped):
   @classmethod
   def anim(cls, trjs, p, fps=24):
-    fig, ax = plt.subplots(1, 1)
+    fig, ax = plt.subplots(1, 1, figsize=(3,3))
+    ax.axis('off')
 
     t, Q, _, _ = util.obs(trjs, cls, p)
     q0 = Q[0]
@@ -430,7 +474,8 @@ class PCrBiped(DecoupledBiped):
     handles = {}
 
     def init():
-      ax.set_xlim(-.5, .5)
+      #ax.set_xlim(-.5, .5)
+      ax.set_xlim(-.6, .6)
       ax.set_ylim(-.1, 1.1)
       _, handles_fig = cls.draw_config(q0, p, ax)
 
@@ -500,16 +545,18 @@ class PCrBiped(DecoupledBiped):
     return f
 
 def test_anim():
-  p = PCrBiped.nominal_parameters()
+  hds = PCrBiped
+  hds = RigidBiped
+  p = hds.nominal_parameters()
   theta = 0
-  q0, dq0, J = PCrBiped.ic(p, theta)
+  q0, dq0, J = hds.ic(p, theta)
   J = [False, False]
   rx = 1e-5
   dt = 1e-2
   t0 = 0
   tstop = 1.4
-  trjs = util.sim(PCrBiped, tstop, dt, rx, t0, q0, dq0, J, p)
-  anim = PCrBiped.anim(trjs, p)
+  trjs = util.sim(hds, tstop, dt, rx, t0, q0, dq0, J, p)
+  anim = hds.anim(trjs, p)
 
 
 if __name__ == '__main__':
